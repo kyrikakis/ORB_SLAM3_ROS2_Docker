@@ -28,6 +28,12 @@ xhost +local:docker
 docker rm -f orbslam3_ros2 &>/dev/null
 # [ -d "orbslam3_ros2" ] && sudo rm -rf orbslam3_ros2 && mkdir orbslam3_ros2
 
+if [ ! -d "orbslam3_ros2" ]; then
+  git clone -b humble https://github.com/kyrikakis/ORB_SLAM3_ROS2.git orbslam3_ros2 && \
+  tar -xvf orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz -C orbslam3_ros2/vocabulary && \
+  rm orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz
+fi
+
 # Create a new container
 docker run -td --privileged --net=host --ipc=host \
     --name="orbslam3_ros2" \
@@ -43,10 +49,9 @@ docker run -td --privileged --net=host --ipc=host \
 
 # Pull & Compile ORBSLAM3-ROS_ros2
 docker exec -it orbslam3_ros2 bash -i -c \
-   "cd /colcon_ws/src && \
-    cd /colcon_ws/src/orbslam3_ros2/vocabulary && \
-    tar -xvf /colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz && \
-    source /opt/ros/humble/setup.bash && cd /colcon_ws && \
+   "cd /colcon_ws && \
     colcon build --symlink-install --packages-select orbslam3"
-#docker exec -it orbslam3 bash -i -c "echo 'ROS_PACKAGE_PATH=/opt/ros/noetic/share:/ORB_SLAM3/Examples/ROS'>>~/.bashrc && source ~/.bashrc && cd /ORB_SLAM3 && chmod +x build_ros.sh && ./build_ros.sh"
-
+    # cd /colcon_ws/src && \
+    # cd /colcon_ws/src/orbslam3_ros2/vocabulary && \
+    # tar -xvf /colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz && \
+# docker exec -it orbslam3 bash -i -c "echo 'ROS_PACKAGE_PATH=/opt/ros/noetic/share:/ORB_SLAM3/Examples/ROS'>>~/.bashrc && source ~/.bashrc && cd /ORB_SLAM3 && chmod +x build_ros.sh && ./build_ros.sh"
