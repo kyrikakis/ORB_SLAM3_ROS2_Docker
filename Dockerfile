@@ -84,12 +84,13 @@ RUN chmod +x  /ros_entrypoint.sh
 ENV ROS_DISTRO humble
 ENV LANG en_US.UTF-8
 
+SHELL ["/bin/bash", "-c"] 
+
 # Build ORBSALM3 ROS2
 RUN apt update
 RUN apt install -y python3-colcon-common-extensions
 RUN apt install -y ros-humble-vision-opencv 
 RUN apt install -y ros-humble-message-filters
-RUN mkdir -p /colcon_ws/src/orbslam3_ros2
 # RUN mkdir -p /colcon_ws/src && \
 #     cd /colcon_ws/src && \
 #     git clone -b humble https://github.com/zang09/ORB_SLAM3_ROS2.git orbslam3_ros2
@@ -101,12 +102,22 @@ RUN mkdir -p /colcon_ws/src/orbslam3_ros2
 
 # RUN cd /colcon_ws/src/orbslam3_ros2/vocabulary && tar -xvf /colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz
 
-# RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc && echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc
+RUN mkdir -p /colcon_ws/src
+
+RUN apt install ros-humble-camera-calibration-parsers && \ 
+    apt install ros-humble-camera-info-manager && \
+    apt install ros-humble-launch-testing-ament-cmake && \
+    cd /colcon_ws/src && \
+    git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
+    cd /colcon_ws && \
+    source /opt/ros/humble/setup.bash && colcon build
+
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
+RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 USER $USERNAME
 # terminal colors with xterm
 ENV TERM xterm
-WORKDIR /ORB_SLAM3
+WORKDIR /colcon_ws
 CMD ["bash"]
