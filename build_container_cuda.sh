@@ -30,8 +30,7 @@ docker rm -f orbslam3_ros2 &>/dev/null
 
 if [ ! -d "orbslam3_ros2" ]; then
   git clone -b humble https://github.com/kyrikakis/ORB_SLAM3_ROS2.git orbslam3_ros2 && \
-  tar -xvf orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz -C orbslam3_ros2/vocabulary && \
-  rm orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz
+  tar -xvf orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz -C orbslam3_ros2/vocabulary
 fi
 
 # Create a new container
