@@ -109,6 +109,7 @@ RUN apt install ros-humble-camera-calibration-parsers && \
     apt install ros-humble-launch-testing-ament-cmake && \
     cd /colcon_ws/src && \
     git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
+    git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
 
