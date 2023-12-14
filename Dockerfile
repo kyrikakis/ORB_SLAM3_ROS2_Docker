@@ -74,7 +74,7 @@ RUN mkdir -p /Datasets/EuRoC && \
     wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip -O /Datasets/EuRoC/MH01.zip && \
     unzip /Datasets/EuRoC/MH01.zip -d /Datasets/EuRoC/MH01 && rm /Datasets/EuRoC/MH01.zip
 RUN mkdir /ORB_SLAM3
-RUN cd /ORB_SLAM3 && git clone https://github.com/UZ-SLAMLab/ORB_SLAM3 /ORB_SLAM3 && \
+RUN cd /ORB_SLAM3 && git clone https://github.com/kyrikakis/ORB_SLAM3 /ORB_SLAM3 && \
     sed -i '1i add_compile_options(-std=c++14)' CMakeLists.txt
 RUN cd /ORB_SLAM3 && chmod +x build.sh && ./build.sh 
 
@@ -112,6 +112,8 @@ RUN apt install ros-humble-camera-calibration-parsers && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
+
+RUN apt install -y ros-humble-slam-toolbox
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
