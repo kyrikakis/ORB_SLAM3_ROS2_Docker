@@ -20,18 +20,8 @@ XAUTH=/tmp/.docker.xauth
 touch $XAUTH
 xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
 
-xhost +local:docker
-
-# docker pull jahaniam/orbslam3:ubuntu20_noetic_cuda
-
 # Remove existing container
 docker rm -f orbslam3_ros2 &>/dev/null
-# [ -d "orbslam3_ros2" ] && sudo rm -rf orbslam3_ros2 && mkdir orbslam3_ros2
-
-if [ ! -d "orbslam3_ros2" ]; then
-  git clone -b humble https://github.com/kyrikakis/ORB_SLAM3_ROS2.git orbslam3_ros2 && \
-  tar -xvf orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz -C orbslam3_ros2/vocabulary
-fi
 
 # Create a new container
 docker run -td --privileged --net=host --ipc=host \
@@ -43,14 +33,10 @@ docker run -td --privileged --net=host --ipc=host \
     -e "XAUTHORITY=$XAUTH" \
     --cap-add=SYS_PTRACE \
     -v /etc/group:/etc/group:ro \
-    -v `pwd`/orbslam3_ros2:/colcon_ws/src/orbslam3_ros2 \
+    -v `pwd`src/orb_slam3_wrapper:/workspaces/src/orb_slam3_wrapper \
     orbslam3_ros2
 
 # Pull & Compile ORBSLAM3-ROS_ros2
 docker exec -it orbslam3_ros2 bash -i -c \
-   "cd /colcon_ws && \
+   "cd /workspaces && \
     colcon build --symlink-install --packages-select orbslam3"
-    # cd /colcon_ws/src && \
-    # cd /colcon_ws/src/orbslam3_ros2/vocabulary && \
-    # tar -xvf /colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz && \
-# docker exec -it orbslam3 bash -i -c "echo 'ROS_PACKAGE_PATH=/opt/ros/noetic/share:/ORB_SLAM3/Examples/ROS'>>~/.bashrc && source ~/.bashrc && cd /ORB_SLAM3 && chmod +x build_ros.sh && ./build_ros.sh"

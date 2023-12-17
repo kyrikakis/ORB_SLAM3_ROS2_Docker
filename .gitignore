@@ -1,3 +1,6 @@
 vocabulary/
 vscode/
 .vscode/settings.json
+maps/
+launch/
+build/

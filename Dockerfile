@@ -53,14 +53,6 @@ RUN apt-get install -y libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev
 RUN apt-get install -y libgtk-3-dev
 
 RUN apt install -y libopencv-dev python3-opencv
-# RUN cd /tmp && git clone https://github.com/opencv/opencv.git 
-    
-# RUN cd /tmp/opencv && \
-#     git checkout 4.8.1 && \
-#     mkdir build && cd build && \
-#     cmake -D CMAKE_BUILD_TYPE=Release -D BUILD_EXAMPLES=OFF  -D BUILD_DOCS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_TESTS=OFF -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
-#     make -j$nproc && make install && \
-#     cd / && rm -rf /tmp/opencv
 
 # # Build Pangolin
 RUN cd /tmp && git clone https://github.com/stevenlovegrove/Pangolin && \
@@ -86,41 +78,30 @@ ENV LANG en_US.UTF-8
 
 SHELL ["/bin/bash", "-c"] 
 
-# Build ORBSALM3 ROS2
 RUN apt update
 RUN apt install -y python3-colcon-common-extensions
 RUN apt install -y ros-humble-vision-opencv 
 RUN apt install -y ros-humble-message-filters
-# RUN mkdir -p /colcon_ws/src && \
-#     cd /colcon_ws/src && \
-#     git clone -b humble https://github.com/zang09/ORB_SLAM3_ROS2.git orbslam3_ros2
-# RUN sed -i 's/~\/Install\/ORB_SLAM\/ORB_SLAM3/\/ORB_SLAM3/g' /colcon_ws/src/orbslam3_ros2/CMakeModules/FindORB_SLAM3.cmake
-# RUN sed -i 's/camera/\/camera\/image_raw/g' /colcon_ws/src/orbslam3_ros2/src/monocular/monocular-slam-node.cpp
-# SHELL ["/bin/bash", "-c"] 
-# RUN source /opt/ros/humble/setup.bash && cd /colcon_ws && \
-#     colcon build --symlink-install --packages-select orbslam3
 
-# RUN cd /colcon_ws/src/orbslam3_ros2/vocabulary && tar -xvf /colcon_ws/src/orbslam3_ros2/vocabulary/ORBvoc.txt.tar.gz
-
-RUN mkdir -p /colcon_ws/src
+RUN mkdir -p /workspaces/src
 
 RUN apt install ros-humble-camera-calibration-parsers && \ 
     apt install ros-humble-camera-info-manager && \
     apt install ros-humble-launch-testing-ament-cmake && \
-    cd /colcon_ws/src && \
+    cd /workspaces/src && \
     git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
-    cd /colcon_ws && \
+    cd /workspaces && \
     source /opt/ros/humble/setup.bash && colcon build
 
 RUN apt install -y ros-humble-slam-toolbox
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
-RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
+RUN echo "source /workspaces/install/setup.bash" >> ~/.bashrc 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 USER $USERNAME
 # terminal colors with xterm
 ENV TERM xterm
-WORKDIR /colcon_ws
+WORKDIR /workspaces
 CMD ["bash"]

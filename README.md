@@ -5,3 +5,10 @@ docker:
 `ffplay tcp://192.168.1.210:8888 -vf "setpts=N/30" -ffls nobuffer -flags low_delay -framedrop`
 ### Camera calibration
 https://navigation.ros.org/tutorials/docs/camera_calibration.html
+
+## Installation
+add this line to your .bashrc file:
+```
+sed -i -e '$a\'$'\n''xhost +local:docker' ~/.bashrc
+source ~/.bashrc
+```
