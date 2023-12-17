@@ -41,11 +41,6 @@ RUN apt-get install -y \
         ca-certificates\
         software-properties-common
 
-RUN curl -fsSL https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add -
-RUN add-apt-repository "deb https://download.sublimetext.com/ apt/stable/"
-RUN apt update
-RUN apt install -y sublime-text
-
 # Build OpenCV (3.0 or higher should be fine)
 RUN apt-get install -y python3-dev python3-numpy 
 RUN apt-get install -y libavcodec-dev libavformat-dev libswscale-dev
@@ -85,16 +80,16 @@ RUN apt install -y ros-humble-message-filters
 
 RUN mkdir -p /workspaces/src
 
-RUN apt install ros-humble-camera-calibration-parsers && \ 
-    apt install ros-humble-camera-info-manager && \
-    apt install ros-humble-launch-testing-ament-cmake && \
+RUN apt install -y ros-humble-camera-calibration-parsers && \ 
+    apt install -y ros-humble-camera-info-manager && \
+    apt install -y ros-humble-launch-testing-ament-cmake && \
     cd /workspaces/src && \
     git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
     cd /workspaces && \
     source /opt/ros/humble/setup.bash && colcon build
 
-RUN apt install -y ros-humble-slam-toolbox
+# RUN apt install -y ros-humble-slam-toolbox
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /workspaces/install/setup.bash" >> ~/.bashrc 

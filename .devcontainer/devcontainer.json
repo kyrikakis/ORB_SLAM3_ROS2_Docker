@@ -1,0 +1,31 @@
+{
+    "name": "ORB_SLAM3_ROS2",
+    "dockerFile": "../Dockerfile", 
+    "runArgs": [
+      "--gpus=all",
+      "--env=DISPLAY",
+      "--env=QT_X11_NO_MITSHM=1",
+      "--env=XAUTHORITY=/tmp/.docker.xauth",
+      "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw",
+      "--volume=/etc/group:/etc/group:ro"
+    ],
+    "remoteEnv": {
+    },
+    "updateContentCommand": "bash .devcontainer/build-orb_slam3_wrapper.sh",
+    "postCreateCommand": [
+      "nvidia-smi"
+    ],
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "ms-python.python",
+          "ms-toolsai.jupyter",
+          "ms-toolsai.vscode-jupyter-cell-tags",
+          "ms-toolsai.jupyter-keymap",
+          "ms-toolsai.jupyter-renderers",
+          "ms-toolsai.vscode-jupyter-slideshow",
+          "ms-python.vscode-pylance"
+        ]
+      }
+    }
+  }
