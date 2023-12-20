@@ -63,7 +63,7 @@ RUN mkdir -p /Datasets/EuRoC && \
 RUN mkdir /ORB_SLAM3
 RUN cd /ORB_SLAM3 && git clone https://github.com/kyrikakis/ORB_SLAM3 /ORB_SLAM3 && \
     sed -i '1i add_compile_options(-std=c++14)' CMakeLists.txt
-RUN cd /ORB_SLAM3 && chmod +x build.sh && ./build.sh 
+# RUN cd /ORB_SLAM3 && chmod +x build.sh && ./build.sh 
 
 
 COPY ros_entrypoint.sh /ros_entrypoint.sh
@@ -78,25 +78,23 @@ RUN apt install -y python3-colcon-common-extensions
 RUN apt install -y ros-humble-vision-opencv 
 RUN apt install -y ros-humble-message-filters
 
-RUN mkdir -p /workspaces/src
+RUN mkdir -p /colcon_ws/src
 
 RUN apt install -y ros-humble-camera-calibration-parsers && \ 
     apt install -y ros-humble-camera-info-manager && \
     apt install -y ros-humble-launch-testing-ament-cmake && \
-    cd /workspaces/src && \
+    cd /colcon_ws/src && \
     git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
-    cd /workspaces && \
+    cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
 
-# RUN apt install -y ros-humble-slam-toolbox
-
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
-RUN echo "source /workspaces/install/setup.bash" >> ~/.bashrc 
+RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 
 USER $USERNAME
 # terminal colors with xterm
 ENV TERM xterm
-WORKDIR /workspaces
+WORKDIR /colcon_ws
 CMD ["bash"]

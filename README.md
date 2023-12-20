@@ -12,3 +12,7 @@ add this line to your .bashrc file:
 sed -i -e '$a\'$'\n''xhost +local:docker' ~/.bashrc
 source ~/.bashrc
 ```
+## Run
+
+Run monocular:
+`source install/setup.bash && ros2 run orbslam3 mono-pcloud /workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt /workspaces/ORB_SLAM3_ROS2_Docker/config/monocular/TUM1_wide.yaml`
