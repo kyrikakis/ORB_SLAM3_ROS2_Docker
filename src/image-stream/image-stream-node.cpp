@@ -48,35 +48,18 @@ void ImageStreamNode::StreamImage()
 
     std::cout << "buffer size: " << cap.get(cv::CAP_PROP_BUFFERSIZE) << std::endl;
 
-    // Check if the video capture object is successfully opened
-    // if (!cap.isOpened()) {
-    //     std::cerr << "Error opening video stream from TCP source" << std::endl;
-    //     return;
-    // } else {
-    //     std::cout << "video capture suceeded!" << std::endl;
-    // }
-
     cv::Mat frame;
     cap >> frame;
     std::cout << "frame received size: " << frame.size() << std::endl;
 
-    //cv::namedWindow("Video Stream", cv::WINDOW_NORMAL);
-
-    // std::ifstream inputStream("tcp://192.168.1.210:8888", std::ios::binary);
-
-    // if (!inputStream.is_open()) {
-    //     std::cerr << "Error opening video stream." << std::endl;
-    //     return -1;
-    // }
-
     try {
-        while (true) {
-// Read a frame from the video source
+        while (rclcpp::ok()) {
+            // Read a frame from the video source
             cap >> frame;
 
             // Check if the frame is empty (end of video stream)
             if (frame.empty()) {
-                std::cout << "End of video stream" << std::endl;
+                RCLCPP_ERROR(this->get_logger(),  "End of video stream" );
                 break;
             } else {
                 std::cout << "frame rate: " << cap.get(cv::CAP_PROP_FPS) << std::endl;
@@ -102,14 +85,14 @@ void ImageStreamNode::StreamImage()
         // Clean up
         cv::destroyAllWindows();
     } catch (cv::Exception& e) {
-        std::cerr << "OpenCV exception: " << e.what() << std::endl;
+        RCLCPP_ERROR(this->get_logger(),  "OpenCV exception: %s", e.what());
         return;
     } catch (std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        RCLCPP_ERROR(this->get_logger(),  "Error: %s", e.what());
     }
 }
 
 ImageStreamNode::~ImageStreamNode()
 {
-
+    RCLCPP_INFO(this->get_logger(), "Destructor called");
 }

@@ -2,7 +2,7 @@ vocabulary/
 vscode/
 .vscode/settings.json
 maps/
-launch/
 build/
 install/
 log/
+KeyFrameTrajectory.txt

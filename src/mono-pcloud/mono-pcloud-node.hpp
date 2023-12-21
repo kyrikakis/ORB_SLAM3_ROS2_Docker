@@ -27,7 +27,7 @@
 class MonoPcloudNode : public rclcpp::Node
 {
 public:
-    MonoPcloudNode(ORB_SLAM3::System *pSLAM);
+    MonoPcloudNode();
 
     ~MonoPcloudNode();
 

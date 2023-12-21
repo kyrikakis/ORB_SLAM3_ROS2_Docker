@@ -16,6 +16,7 @@ int main(int argc, char **argv)
 
     rclcpp::spin(node);
     rclcpp::shutdown();
+    std::cout << "shutdown image_stream" << std::endl;
 
     return 0;
 }

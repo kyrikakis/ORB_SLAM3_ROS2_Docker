@@ -19,12 +19,7 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    // malloc error using new.. try shared ptr
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    bool visualization = true;
-    ORB_SLAM3::System SLAM(argv[1], argv[2], ORB_SLAM3::System::MONOCULAR, visualization);
-
-    auto node = std::make_shared<MonoPcloudNode>(&SLAM);
+    auto node = std::make_shared<MonoPcloudNode>();
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);

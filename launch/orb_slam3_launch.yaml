@@ -1,0 +1,31 @@
+launch:
+
+- node:
+    pkg: "orbslam3"
+    exec: "mono-pcloud"
+    name: "monocular"
+    namespace: "orbslam3"
+    output: "screen"
+    param:
+    - 
+        name: "vocabulary_file"
+        value: "/workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt"
+    - 
+        name: "slam_config_file"
+        value: "/workspaces/ORB_SLAM3_ROS2_Docker/config/monocular/TUM1_wide.yaml"
+
+- node:
+    pkg: "orbslam3"
+    exec: "image-stream"
+    name: "image_stream"
+    namespace: "orbslam3"
+
+- node:
+    pkg: "image_view"
+    exec: "image_view"
+    name: "image_view"
+    namespace: "orbslam3"
+    remap:
+    -
+        from: image
+        to: /orbslam3/image_stream/image_raw

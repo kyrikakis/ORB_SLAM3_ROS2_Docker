@@ -6,9 +6,21 @@
 
 using std::placeholders::_1;
 
-MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM)
+MonoPcloudNode::MonoPcloudNode()
     : Node("orb_slam3")
 {
+    this->declare_parameter("vocabulary_file", ""); 
+    this->declare_parameter("slam_config_file", "");
+    std::string vocabulary_file = this->get_parameter("vocabulary_file").as_string(); 
+    std::string slam_config_file = this->get_parameter("slam_config_file").as_string(); 
+
+    RCLCPP_INFO(this->get_logger(), "Using vocabulary file: %s", vocabulary_file.c_str());
+    RCLCPP_INFO(this->get_logger(), "Using slam config file: %s", slam_config_file.c_str());
+
+    // Create SLAM system. It initializes all system threads and gets ready to process frames.
+    bool visualization = true;
+    m_SLAM = new ORB_SLAM3::System(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
+
     size_t depth = 10;
     rmw_qos_reliability_policy_t reliability_policy = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
     rmw_qos_history_policy_t history_policy = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -32,10 +44,9 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM)
     auto qos = rclcpp::QoS(
         rclcpp::QoSInitialization::from_rmw(qos_profile));
 
-    m_SLAM = pSLAM;
     // std::cout << "slam changed" << std::endl;
     m_image_subscriber = this->create_subscription<ImageMsg>(
-        "/camera/image_raw",
+        "/orbslam3/image_stream/image_raw",
         qos,
         std::bind(&MonoPcloudNode::GrabImage, this, std::placeholders::_1));
     map_frame_id = "map";
@@ -242,10 +253,16 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
         return;
     }
     rclcpp::Time current_frame_time = msg->header.stamp;
+    RCLCPP_INFO(this->get_logger(), "Frame received");
+    try {
+        cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
+    }
+    catch (const runtime_error& e) {
+        RCLCPP_ERROR(this->get_logger(), "m_SLAM exception: %s", e.what());
+        return;
+    }
 
-    cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
-
-    publish_ros_pose_tf(Tcw, current_frame_time);
-    publish_ros_tracking_mappoints(m_SLAM->GetTrackedMapPoints(), current_frame_time);
-    publish_ros_tracking_img(Tcw, current_frame_time);
+    // publish_ros_pose_tf(Tcw, current_frame_time);
+    // publish_ros_tracking_mappoints(m_SLAM->GetTrackedMapPoints(), current_frame_time);
+    // publish_ros_tracking_img(Tcw, current_frame_time);
 }

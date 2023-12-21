@@ -1,9 +1,9 @@
 %YAML:1.0
 
 # If the LoadFile doesn't exist, the system give a message and create a new Atlas from scratch
-#System.LoadAtlasFromFile: "src/orbslam3_ros2/maps/Session_TUM1_wide_mono"
+#System.LoadAtlasFromFile: "maps/Session_TUM1_wide_mono"
 # The store file is created from the current session, if a file with the same name exists it is deleted
-#System.SaveAtlasToFile: "src/orbslam3_ros2/maps/Session_TUM1_wide_mono"
+#System.SaveAtlasToFile: "maps/Session_TUM1_wide_mono"
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
