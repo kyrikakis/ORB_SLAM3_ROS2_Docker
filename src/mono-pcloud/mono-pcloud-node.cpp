@@ -6,21 +6,10 @@
 
 using std::placeholders::_1;
 
-MonoPcloudNode::MonoPcloudNode()
-    : Node("orb_slam3")
+MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* p_node)
 {
-    this->declare_parameter("vocabulary_file", ""); 
-    this->declare_parameter("slam_config_file", "");
-    std::string vocabulary_file = this->get_parameter("vocabulary_file").as_string(); 
-    std::string slam_config_file = this->get_parameter("slam_config_file").as_string(); 
-
-    RCLCPP_INFO(this->get_logger(), "Using vocabulary file: %s", vocabulary_file.c_str());
-    RCLCPP_INFO(this->get_logger(), "Using slam config file: %s", slam_config_file.c_str());
-
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    bool visualization = true;
-    m_SLAM = new ORB_SLAM3::System(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
-
+    m_SLAM = pSLAM;
+    node = p_node;
     size_t depth = 10;
     rmw_qos_reliability_policy_t reliability_policy = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
     rmw_qos_history_policy_t history_policy = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -45,7 +34,7 @@ MonoPcloudNode::MonoPcloudNode()
         rclcpp::QoSInitialization::from_rmw(qos_profile));
 
     // std::cout << "slam changed" << std::endl;
-    m_image_subscriber = this->create_subscription<ImageMsg>(
+    m_image_subscriber = node->create_subscription<ImageMsg>(
         "/orbslam3/image_stream/image_raw",
         qos,
         std::bind(&MonoPcloudNode::GrabImage, this, std::placeholders::_1));
@@ -53,8 +42,8 @@ MonoPcloudNode::MonoPcloudNode()
     pose_frame_id = "odom";
     tf_orb_to_ros.setValue(0, 0, 1, -1, 0, 0, 0, -1, 0);
 
-    pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
-    map_points_pub = this->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
+    pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
+    map_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
 
     std::shared_ptr<rclcpp::Node> image_transport_node = rclcpp::Node::make_shared("image_publisher");
     image_transport::ImageTransport image_transport(image_transport_node);
@@ -64,7 +53,7 @@ MonoPcloudNode::MonoPcloudNode()
 
 MonoPcloudNode::~MonoPcloudNode()
 {
-    RCLCPP_INFO(this->get_logger(), "Destructor called");
+    RCLCPP_INFO(node->get_logger(), "Destructor called");
     // Stop all threads
     m_SLAM->Shutdown();
 
@@ -128,7 +117,7 @@ void MonoPcloudNode::publish_ros_pose_tf(cv::Mat Tcw, rclcpp::Time current_frame
 
 void MonoPcloudNode::publish_tf_transform(tf2::Transform tf_transform, rclcpp::Time current_frame_time)
 {
-    static tf2_ros::TransformBroadcaster tf_broadcaster(this);
+    static tf2_ros::TransformBroadcaster tf_broadcaster(node);
 
     std_msgs::msg::Header header;
     header.stamp = current_frame_time;
@@ -249,16 +238,16 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
     }
     catch (cv_bridge::Exception &e)
     {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        RCLCPP_ERROR(node->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
     rclcpp::Time current_frame_time = msg->header.stamp;
-    RCLCPP_INFO(this->get_logger(), "Frame received");
+    RCLCPP_INFO(node->get_logger(), "Frame received");
     try {
         cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
     }
     catch (const runtime_error& e) {
-        RCLCPP_ERROR(this->get_logger(), "m_SLAM exception: %s", e.what());
+        RCLCPP_ERROR(node->get_logger(), "m_SLAM exception: %s", e.what());
         return;
     }
 

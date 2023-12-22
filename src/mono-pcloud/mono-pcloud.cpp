@@ -18,8 +18,21 @@ int main(int argc, char **argv)
     }
 
     rclcpp::init(argc, argv);
+    std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("orb_slam3");
 
-    auto node = std::make_shared<MonoPcloudNode>();
+    node->declare_parameter("vocabulary_file", ""); 
+    node->declare_parameter("slam_config_file", "");
+    std::string vocabulary_file = node->get_parameter("vocabulary_file").as_string(); 
+    std::string slam_config_file = node->get_parameter("slam_config_file").as_string(); 
+
+    RCLCPP_INFO(node->get_logger(), "Using vocabulary file: %s", vocabulary_file.c_str());
+    RCLCPP_INFO(node->get_logger(), "Using slam config file: %s", slam_config_file.c_str());
+
+    // Create SLAM system. It initializes all system threads and gets ready to process frames.
+    bool visualization = true;
+    ORB_SLAM3::System m_SLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
+    MonoPcloudNode mono_orb(&m_SLAM, node.get());
+    //auto node = std::make_shared<MonoPcloudNode>(&m_SLAM, &Node);
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);

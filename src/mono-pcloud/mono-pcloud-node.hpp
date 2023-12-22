@@ -24,10 +24,10 @@
 
 #include <ctime>
 
-class MonoPcloudNode : public rclcpp::Node
+class MonoPcloudNode 
 {
 public:
-    MonoPcloudNode();
+    MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* node);
 
     ~MonoPcloudNode();
 
@@ -48,6 +48,7 @@ private:
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
 
     ORB_SLAM3::System *m_SLAM;
+    rclcpp::Node *node;
 
     cv_bridge::CvImagePtr m_cvImPtr;
 
