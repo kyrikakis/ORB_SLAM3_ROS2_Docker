@@ -89,6 +89,8 @@ RUN apt install -y ros-humble-camera-calibration-parsers && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
 
+RUN tar -xvf vocabulary/ORBvoc.txt.tar.gz -C vocabulary
+
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
 ENTRYPOINT ["/ros_entrypoint.sh"]
