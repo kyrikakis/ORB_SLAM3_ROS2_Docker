@@ -223,7 +223,7 @@ void MonoPcloudNode::publish_ros_tracking_img(const cv::Mat &image, const rclcpp
     header.frame_id = map_frame_id;
 
     const std::shared_ptr<sensor_msgs::msg::Image> rendered_image_msg =
-        cv_bridge::CvImage(header, "rgb8", image).toImageMsg();
+        cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, image).toImageMsg();
 
     rendered_image_pub.publish(rendered_image_msg);
     j++;
@@ -245,13 +245,13 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
     RCLCPP_INFO(node->get_logger(), "Frame received");
     try {
         cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
+
+        publish_ros_pose_tf(Tcw, current_frame_time);
+        publish_ros_tracking_mappoints(m_SLAM->GetTrackedMapPoints(), current_frame_time);
+        publish_ros_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
     }
     catch (const runtime_error& e) {
         RCLCPP_ERROR(node->get_logger(), "m_SLAM exception: %s", e.what());
         return;
     }
-
-    // publish_ros_pose_tf(Tcw, current_frame_time);
-    // publish_ros_tracking_mappoints(m_SLAM->GetTrackedMapPoints(), current_frame_time);
-    // publish_ros_tracking_img(Tcw, current_frame_time);
 }
