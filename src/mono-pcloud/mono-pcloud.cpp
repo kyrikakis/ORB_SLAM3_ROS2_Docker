@@ -32,7 +32,6 @@ int main(int argc, char **argv)
     bool visualization = true;
     ORB_SLAM3::System m_SLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
     MonoPcloudNode mono_orb(&m_SLAM, node.get());
-    //auto node = std::make_shared<MonoPcloudNode>(&m_SLAM, &Node);
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);
