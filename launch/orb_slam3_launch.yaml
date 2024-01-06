@@ -40,3 +40,9 @@ launch:
         from: image
         to: /orbslam3/monocular/tracking_image
 
+- node:
+    pkg: "orbslam3"
+    exec: "pcloud-to-map"
+    name: "pcloud_to_map"
+    namespace: "orbslam3"
+
