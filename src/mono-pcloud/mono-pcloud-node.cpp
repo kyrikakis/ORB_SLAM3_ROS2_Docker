@@ -46,7 +46,7 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* p_node)
     pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
     map_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
     tracked_p_array_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/tracked_p_array", 1000);
-    all_map_points_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/map_and_kf", qos);
+    all_map_points_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/map_and_kf", 1000);
 
     std::shared_ptr<rclcpp::Node> image_transport_node = rclcpp::Node::make_shared("image_publisher");
     image_transport::ImageTransport image_transport(image_transport_node);
@@ -193,6 +193,7 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     vector<float> q = ORB_SLAM3::Converter::toQuaternion(Rwc);
 
     geometry_msgs::msg::PoseArray pt_array;
+    pt_array.header.stamp = current_frame_time;
 
     geometry_msgs::msg::Pose camera_pose;
 
@@ -251,9 +252,10 @@ void MonoPcloudNode::publish_ros_tracking_img(const cv::Mat &image, const rclcpp
     j++;
 }
 
-void MonoPcloudNode::publish_all_points() 
+void MonoPcloudNode::publish_all_points(const rclcpp::Time &current_frame_time) 
 {
     geometry_msgs::msg::PoseArray kf_pt_array;
+    kf_pt_array.header.stamp = current_frame_time;
     if (m_SLAM->getLoopClosing()->isMapReady()) {
         RCLCPP_INFO(node->get_logger(), "Loop detected");
         vector<ORB_SLAM3::KeyFrame*> key_frames = m_SLAM->getMap()->GetAllKeyFrames();
@@ -338,7 +340,7 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
         publish_ros_pose_tf(Tcw, current_frame_time);
         publish_ros_tracking_mappoints(Tcw, m_SLAM->GetTrackedMapPoints(), current_frame_time);
         publish_ros_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
-        publish_all_points();
+        publish_all_points(current_frame_time);
     }
     catch (const runtime_error& e) {
         RCLCPP_ERROR(node->get_logger(), "m_SLAM exception: %s", e.what());

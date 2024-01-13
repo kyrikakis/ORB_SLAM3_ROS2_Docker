@@ -44,7 +44,7 @@ private:
     void publish_pose_stamped(tf2::Transform tf_transform, rclcpp::Time current_frame_time);
     void publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
     void publish_ros_tracking_mappoints(cv::Mat Tcw, std::vector<ORB_SLAM3::MapPoint *> map_points, const rclcpp::Time &current_frame_time);
-    void publish_all_points();
+    void publish_all_points(const rclcpp::Time &current_frame_time);
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
 
     ORB_SLAM3::System *m_SLAM;

@@ -4,6 +4,20 @@
 https://navigation.ros.org/tutorials/docs/camera_calibration.html
 
 ## Installation
+add this to  /etc/docker/daemon.json
+```
+{
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+            "args": [],
+            "path": "nvidia-container-runtime"
+        }
+    },
+    "exec-opts": ["native.cgroupdriver=cgroupfs"]
+}
+```
+
 add this line to your .bashrc file:
 ```
 sed -i -e '$a\'$'\n''xhost +local:docker' ~/.bashrc

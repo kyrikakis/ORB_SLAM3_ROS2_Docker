@@ -20,29 +20,29 @@ launch:
     name: "image_stream"
     namespace: "orbslam3"
 
-- node:
-    pkg: "image_view"
-    exec: "image_view"
-    name: "image_view"
-    namespace: "orbslam3"
-    remap:
-    -
-        from: image
-        to: /orbslam3/image_stream/image_raw
+# - node:
+#     pkg: "image_view"
+#     exec: "image_view"
+#     name: "image_view"
+#     namespace: "orbslam3"
+#     remap:
+#     -
+#         from: image
+#         to: /orbslam3/image_stream/image_raw
 
-- node:
-    pkg: "image_view"
-    exec: "image_view"
-    name: "tracking_image_view"
-    namespace: "orbslam3"
-    remap:
-    -
-        from: image
-        to: /orbslam3/monocular/tracking_image
+# - node:
+#     pkg: "image_view"
+#     exec: "image_view"
+#     name: "tracking_image_view"
+#     namespace: "orbslam3"
+#     remap:
+#     -
+#         from: image
+#         to: /orbslam3/monocular/tracking_image
 
-- node:
-    pkg: "orbslam3"
-    exec: "pcloud-to-map"
-    name: "pcloud_to_map"
-    namespace: "orbslam3"
+# - node:
+#     pkg: "orbslam3"
+#     exec: "pcloud-to-map"
+#     name: "pcloud_to_map"
+#     namespace: "orbslam3"
 

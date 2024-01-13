@@ -25,7 +25,7 @@
 using namespace std;
 
 // parameters
-float scale_factor = 3;
+float scale_factor = 5;
 float resize_factor = 5;
 float cloud_max_x = 10;
 float cloud_min_x = -10.0;
@@ -57,16 +57,40 @@ int kf_pos_grid_x, kf_pos_grid_z;
 std::shared_ptr<rclcpp::Node> node;
 
 void ptCallback(const geometry_msgs::msg::PoseArray::ConstPtr& pts_and_pose);
+void loopClosingCallback(const geometry_msgs::msg::PoseArray::ConstPtr& all_kf_and_pts);
 void updateGridMap(const geometry_msgs::msg::PoseArray::ConstPtr& pts_and_pose);
 void processMapPt(const geometry_msgs::msg::Point &curr_pt, cv::Mat &occupied,
 	cv::Mat &visited, cv::Mat &pt_mask, int kf_pos_grid_x, int kf_pos_grid_z);
 void processMapPts(const std::vector<geometry_msgs::msg::Pose> &pts, unsigned int n_pts,
 	unsigned int start_id, int kf_pos_grid_x, int kf_pos_grid_z);
 void getGridMap();
+void showGridMap(unsigned int id);
+void resetGridMap(const geometry_msgs::msg::PoseArray::ConstPtr& all_kf_and_pts);
 
 int main(int argc, char **argv){
     rclcpp::init(argc, argv);
     node = std::make_shared<rclcpp::Node>("pcloud_to_map");
+
+	node->declare_parameter("scale_factor", 5.0); 
+    node->declare_parameter("resize_factor", 5.0);
+    node->declare_parameter("cloud_max_x", 10.0);
+    node->declare_parameter("cloud_min_x", -10.0);
+    node->declare_parameter("cloud_max_z", 16.0);
+    node->declare_parameter("cloud_min_z", -5.0);
+    node->declare_parameter("free_thresh", 0.55);
+    node->declare_parameter("occupied_thresh", 0.50);
+    node->declare_parameter("thresh_diff", 0.01);
+    node->declare_parameter("visit_thresh", 0.0);
+    scale_factor = node->get_parameter("scale_factor").as_double(); 
+    resize_factor = node->get_parameter("resize_factor").as_double(); 
+    cloud_max_x = node->get_parameter("cloud_max_x").as_double(); 
+    cloud_min_x = node->get_parameter("cloud_min_x").as_double(); 
+    cloud_max_z = node->get_parameter("cloud_max_z").as_double(); 
+    cloud_min_z = node->get_parameter("cloud_min_z").as_double(); 
+    free_thresh = node->get_parameter("free_thresh").as_double(); 
+    occupied_thresh = node->get_parameter("occupied_thresh").as_double(); 
+    thresh_diff = node->get_parameter("thresh_diff").as_double(); 
+    visit_thresh = node->get_parameter("visit_thresh").as_double(); 
 
     pub_grid_map = node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/occupancy_grid", 1000);
 
@@ -109,10 +133,17 @@ int main(int argc, char **argv){
 	printf("norm_factor_x: %f\n", norm_factor_x);
 	printf("norm_factor_z: %f\n", norm_factor_z);
 
-    rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr p_array_subscriber = node->create_subscription<geometry_msgs::msg::PoseArray>(
+    rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr p_array_subscriber = 
+	node->create_subscription<geometry_msgs::msg::PoseArray>(
         "/orbslam3/monocular/tracked_p_array",
         1000,
         &ptCallback);
+	
+	rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr map_reset_subscriber = 
+	node->create_subscription<geometry_msgs::msg::PoseArray>(
+        "/orbslam3/monocular/map_and_kf",
+        1000,
+        &loopClosingCallback);
 
     rclcpp::spin(node);
     rclcpp::shutdown();
@@ -123,9 +154,17 @@ void ptCallback(const geometry_msgs::msg::PoseArray::ConstPtr& pts_and_pose){
 	if (loop_closure_being_processed){ return; }
 
 	updateGridMap(pts_and_pose);
-
-	grid_map_msg.info.map_load_time = node->get_clock()->now();
+	grid_map_msg.info.map_load_time = pts_and_pose->header.stamp;
+	grid_map_msg.header.stamp = pts_and_pose->header.stamp;
+	RCLCPP_INFO(node->get_logger(), "grid_map_msg.header.stamp: %i", grid_map_msg.header.stamp.sec);
+	grid_map_msg.header.frame_id = "map";
 	pub_grid_map->publish(grid_map_msg);
+}
+
+void loopClosingCallback(const geometry_msgs::msg::PoseArray::ConstPtr& all_kf_and_pts){
+	loop_closure_being_processed = true;
+	resetGridMap(all_kf_and_pts);
+	loop_closure_being_processed = false;
 }
 
 void updateGridMap(const geometry_msgs::msg::PoseArray::ConstPtr& pts_and_pose){
@@ -148,6 +187,7 @@ void updateGridMap(const geometry_msgs::msg::PoseArray::ConstPtr& pts_and_pose){
 	processMapPts(pts_and_pose->poses, n_pts, 1, kf_pos_grid_x, kf_pos_grid_z);
 
 	getGridMap();
+	showGridMap(1);
 }
 
 void processMapPt(const geometry_msgs::msg::Point &curr_pt, cv::Mat &occupied, 
@@ -239,6 +279,55 @@ void processMapPts(const std::vector<geometry_msgs::msg::Pose> &pts, unsigned in
 	}
 }
 
+void resetGridMap(const geometry_msgs::msg::PoseArray::ConstPtr& all_kf_and_pts){
+	global_visit_counter.setTo(0);
+	global_occupied_counter.setTo(0);
+
+	unsigned int n_kf = all_kf_and_pts->poses[0].position.x;
+	if ((unsigned int) (all_kf_and_pts->poses[0].position.y) != n_kf ||
+		(unsigned int) (all_kf_and_pts->poses[0].position.z) != n_kf) {
+		printf("resetGridMap :: Unexpected formatting in the keyframe count element\n");
+		return;
+	}
+	printf("Resetting grid map with %d key frames\n", n_kf);
+	std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+	unsigned int id = 0;
+	for (unsigned int kf_id = 0; kf_id < n_kf; ++kf_id){
+		const geometry_msgs::msg::Point &kf_location = all_kf_and_pts->poses[++id].position;
+		//const geometry_msgs::Quaternion &kf_orientation = pts_and_pose->poses[0].orientation;
+		unsigned int n_pts = all_kf_and_pts->poses[++id].position.x;
+		if ((unsigned int)(all_kf_and_pts->poses[id].position.y) != n_pts ||
+			(unsigned int)(all_kf_and_pts->poses[id].position.z) != n_pts) {
+			printf("resetGridMap :: Unexpected formatting in the point count element for keyframe %d\n", kf_id);
+			return;
+		}
+		float kf_pos_x = kf_location.x*scale_factor;
+		float kf_pos_z = kf_location.z*scale_factor;
+
+		int kf_pos_grid_x = int(floor((kf_pos_x - grid_min_x) * norm_factor_x));
+		int kf_pos_grid_z = int(floor((kf_pos_z - grid_min_z) * norm_factor_z));
+
+		if (kf_pos_grid_x < 0 || kf_pos_grid_x >= w)
+			continue;
+
+		if (kf_pos_grid_z < 0 || kf_pos_grid_z >= h)
+			continue;
+
+		if (id + n_pts >= all_kf_and_pts->poses.size()) {
+			printf("resetGridMap :: Unexpected end of the input array while processing keyframe %u with %u points: only %u out of %u elements found\n",
+				kf_id, n_pts, all_kf_and_pts->poses.size(), id + n_pts);
+			return;
+		}
+		processMapPts(all_kf_and_pts->poses, n_pts, id + 1, kf_pos_grid_x, kf_pos_grid_z);
+		id += n_pts;
+	}	
+	getGridMap();
+	std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+	double ttrack = std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+	printf("Done. Time taken: %f secs\n", ttrack);
+	pub_grid_map->publish(grid_map_msg);
+	showGridMap(1);
+}
 
 void getGridMap() {
 	for (int row = 0; row < h; ++row){
@@ -265,4 +354,40 @@ void getGridMap() {
 		}
 	}
 	cv::resize(grid_map_thresh, grid_map_thresh_resized, grid_map_thresh_resized.size());
+}
+
+void showGridMap(unsigned int id) {
+	cv::imshow("grid_map_msg", cv::Mat(h, w, CV_8SC1, (char*)(grid_map_msg.data.data())));
+	cv::imshow("grid_map_thresh_resized", grid_map_thresh_resized);
+	//cv::imshow("grid_map", grid_map);
+	int key = cv::waitKey(1) % 256;
+	if (key == 27) {
+		cv::destroyAllWindows();
+   		rclcpp::shutdown();
+		exit(0);
+	}
+	else if (key == 'f') {
+		free_thresh -= thresh_diff;
+		if (free_thresh <= occupied_thresh){ free_thresh = occupied_thresh + thresh_diff; }
+
+		printf("Setting free_thresh to: %f\n", free_thresh);
+	}
+	else if (key == 'F') {
+		free_thresh += thresh_diff;
+		if (free_thresh > 1){ free_thresh = 1; }
+		printf("Setting free_thresh to: %f\n", free_thresh);
+	}
+	else if (key == 'o') {
+		occupied_thresh -= thresh_diff;
+		if (free_thresh < 0){ free_thresh = 0; }
+		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
+	}
+	else if (key == 'O') {
+		occupied_thresh += thresh_diff;
+		if (occupied_thresh >= free_thresh){ occupied_thresh = free_thresh - thresh_diff; }
+		printf("Setting occupied_thresh to: %f\n", occupied_thresh);
+	}
+	else if (key == 's') {
+		//saveMap(id);
+	}
 }
