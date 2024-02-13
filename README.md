@@ -29,5 +29,11 @@ source ~/.bashrc
 ```
 ## Run
 
-Run monocular:
-`source install/setup.bash && ros2 run orbslam3 mono-pcloud /workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt /workspaces/ORB_SLAM3_ROS2_Docker/config/monocular/TUM1_wide.yaml`
+`ros2 launch launch/orb_slam3_launch.py`
+
+## Acknowledgements
+
+https://github.com/UZ-SLAMLab/ORB_SLAM3
+https://github.com/abhineet123/ORB_SLAM2
+https://github.com/zang09/ORB_SLAM3_ROS2
+
