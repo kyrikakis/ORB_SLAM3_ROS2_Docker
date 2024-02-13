@@ -44,7 +44,8 @@ private:
     void publish_pose_stamped(tf2::Transform tf_transform, rclcpp::Time current_frame_time);
     void publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
     void publish_ros_tracking_mappoints(cv::Mat Tcw, std::vector<ORB_SLAM3::MapPoint *> map_points, const rclcpp::Time &current_frame_time);
-    void publish_all_points(const rclcpp::Time &current_frame_time);
+    void publish_all_keyframes_points(const rclcpp::Time &current_frame_time);
+    void publish_all_map_points(const rclcpp::Time &current_frame_time);
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
 
     ORB_SLAM3::System *m_SLAM;
@@ -58,6 +59,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_points_pub;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr tracked_p_array_pub;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr all_map_points_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
     image_transport::Publisher rendered_image_pub;
 };
 

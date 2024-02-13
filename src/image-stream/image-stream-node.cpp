@@ -80,6 +80,8 @@ void ImageStreamNode::StreamImage()
 
             sensor_msgs::msg::CameraInfo ci = cim.getCameraInfo();
             ci.header = header;
+            ci.height = frame.size().height;
+            ci.width = frame.size().width;
             pub_ci->publish(ci);
         }
         // Clean up

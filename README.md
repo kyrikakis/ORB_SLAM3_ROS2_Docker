@@ -3,6 +3,10 @@
 ### Camera calibration
 https://navigation.ros.org/tutorials/docs/camera_calibration.html
 
+```
+ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.031 --pattern=chessboard --no-service-check --ros-args -r image:=/camera/image_raw -p camera:=/camera/camera_info
+```
+
 ## Installation
 add this to  /etc/docker/daemon.json
 ```

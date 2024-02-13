@@ -32,6 +32,9 @@ find_package(Pangolin REQUIRED)
 find_package(ORB_SLAM3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
+find_library(LZ4_LIBRARIES NAMES liblz4.so HINTS "lz4/lib")
+link_libraries(${LZ4_LIBRARIES})
+
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
