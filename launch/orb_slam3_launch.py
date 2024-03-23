@@ -16,6 +16,7 @@ def generate_launch_description():
             "vocabulary_file": "/workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt",
             "slam_config_file": "/workspaces/ORB_SLAM3_ROS2_Docker/config/monocular/TUM1_wide.yaml"
         }],
+        # prefix=['gdbserver localhost:3000'],
         # remappings=[
         #     ('/cloud_in', '/no_ground/oneshot/pointcloud'),
         #     ('/orbslam3/monocular/pcloud_all', '/concatenated/pointcloud'),
@@ -63,10 +64,27 @@ def generate_launch_description():
         parameters=[pcloud_to_map_config]
     )
 
+    project_map = Node(
+        package='orbslam3',
+        namespace='orbslam3',
+        executable='project-map',
+        name='project_map'
+    )
+
+    rviz2 = Node(
+            package='rviz2',
+            namespace='',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d' + os.path.join('config', 'rviz2', 'rviz_main.rviz')]
+    )
+
     return LaunchDescription([
         orbslam3_node,
-        img_view_node,
+        # rviz2,
+        # img_view_node,
         #tracking_view_node,
-        pcloud_to_map_node,
-        img_stream_node,
+        # pcloud_to_map_node,
+        # project_map,
+        # img_stream_node,
     ])

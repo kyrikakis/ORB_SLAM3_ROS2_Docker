@@ -86,6 +86,7 @@ RUN apt install -y ros-humble-camera-calibration-parsers && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
+RUN apt install -y gdbserver
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 

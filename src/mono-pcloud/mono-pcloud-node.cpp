@@ -119,13 +119,13 @@ void MonoPcloudNode::publish_ros_pose_tf(cv::Mat Tcw, rclcpp::Time current_frame
         tf2::Transform tf_transform =
             from_orb_to_ros_tf_transform(Tcw);
 
-        publish_tf_transform(tf_transform, current_frame_time);
+        publish_tf_transform(tf_transform, pose_frame_id, current_frame_time);
 
         publish_pose_stamped(tf_transform, current_frame_time);
     }
 }
 
-void MonoPcloudNode::publish_tf_transform(tf2::Transform tf_transform, rclcpp::Time current_frame_time)
+void MonoPcloudNode::publish_tf_transform(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time)
 {
     static tf2_ros::TransformBroadcaster tf_broadcaster(node);
 
@@ -172,7 +172,7 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     sensor_msgs::msg::PointCloud2 cloud;
     int j = 0;
     cloud.header.stamp = current_frame_time;
-    cloud.header.frame_id = map_frame_id;
+    cloud.header.frame_id = pose_frame_id;
     cloud.height = 1;
     cloud.width = map_points.size();
     cloud.is_bigendian = false;
@@ -215,16 +215,34 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
 
     pt_array.poses.push_back(camera_pose);
 
+    std_msgs::msg::Header header;
+    header.stamp = current_frame_time;
+    header.frame_id = map_frame_id;
+
+    geometry_msgs::msg::TransformStamped tf_msg;
+    tf_msg.header = header;
+    tf_msg.header.frame_id = map_frame_id;
+    tf_msg.child_frame_id = pose_frame_id;
+    tf2::Transform tf = MonoPcloudNode::from_orb_to_ros_tf_transform(Tcw);
+    tf_msg.transform = tf2::toMsg(tf);
+
+    // Eigen::Matrix4d transform_matrix;
+    // tf2::fromMsg(tf, transform_matrix);
+
     for (unsigned int i = 0; i < cloud.width; i++)
     {
         if (map_points[i])
         {
-
+            tf2::Vector3 target_translation;
             tf2::Vector3 point_translation(map_points[i]->GetWorldPos()(0),
                                            map_points[i]->GetWorldPos()(1),
                                            map_points[i]->GetWorldPos()(2));
 
             point_translation = tf_orb_to_ros * point_translation;
+            // Eigen::Vector4d point_homo(point_translation.x(), point_translation.y(), point_translation.z(), 1.0);
+
+            // // Apply transform using matrix multiplication
+            // Eigen::Vector4d transformed_point = transform_matrix * point_homo;
 
             float data_array[num_channels] = {
                 point_translation.x(), point_translation.y(), point_translation.z()};
@@ -241,6 +259,9 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     }
     j++;
 
+    // sensor_msgs::msg::PointCloud2 target_cloud;
+
+    // pcl_ros::transformPointCloud(map_frame_id, tf_msg , cloud, target_cloud);
     map_points_pub->publish(cloud);
     tracked_p_array_pub->publish(pt_array);
 }

@@ -1,6 +1,8 @@
 #ifndef __MONOCULAR_SLAM_NODE_HPP__
 #define __MONOCULAR_SLAM_NODE_HPP__
 
+#include <tf2_eigen/tf2_eigen.hpp>
+
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include <geometry_msgs/msg/point_stamped.hpp>
@@ -11,6 +13,7 @@
 
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <pcl_ros/transforms.hpp>
 
 #include <image_transport/image_transport.hpp>
 
@@ -40,7 +43,7 @@ private:
 
     tf2::Transform from_orb_to_ros_tf_transform(cv::Mat transformation_mat);
     void publish_ros_pose_tf(cv::Mat Tcw, rclcpp::Time current_frame_time);
-    void publish_tf_transform(tf2::Transform tf_transform, rclcpp::Time current_frame_time);
+    void publish_tf_transform(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time);
     void publish_pose_stamped(tf2::Transform tf_transform, rclcpp::Time current_frame_time);
     void publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
     void publish_ros_tracking_mappoints(cv::Mat Tcw, std::vector<ORB_SLAM3::MapPoint *> map_points, const rclcpp::Time &current_frame_time);
@@ -61,6 +64,8 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr all_map_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
     image_transport::Publisher rendered_image_pub;
+
+
 };
 
 #endif
