@@ -30,6 +30,7 @@ source ~/.bashrc
 ## Run
 
 `ros2 launch launch/orb_slam3_launch.py`
+`ros2 run octomap_server octomap_server_node --ros-args -p base_frame_id:=base_link -p resolution:=0.01`
 
 ## Acknowledgements
 
