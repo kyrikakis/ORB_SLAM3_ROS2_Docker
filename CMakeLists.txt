@@ -33,6 +33,7 @@ find_package(Pangolin REQUIRED)
 find_package(ORB_SLAM3 REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(PCL 1.7 REQUIRED)
+find_package(std_srvs REQUIRED)
 
 find_library(LZ4_LIBRARIES NAMES liblz4.so HINTS "lz4/lib")
 link_libraries(${LZ4_LIBRARIES})
@@ -62,7 +63,8 @@ add_executable(mono-pcloud
   src/mono-pcloud/mono-pcloud.cpp
   src/mono-pcloud/mono-pcloud-node.cpp
 )
-ament_target_dependencies(mono-pcloud rclcpp sensor_msgs geometry_msgs pcl_ros tf2_eigen tf2_ros tf2 tf2_geometry_msgs image_transport cv_bridge ORB_SLAM3 Pangolin OpenCV)
+target_include_directories(mono-pcloud PRIVATE ${rclcpp_INCLUDE_DIRS})
+ament_target_dependencies(mono-pcloud rclcpp sensor_msgs geometry_msgs pcl_ros tf2_eigen tf2_ros tf2 tf2_geometry_msgs std_srvs cv_bridge ORB_SLAM3 Pangolin OpenCV)
 
 add_executable(pcloud-to-map
   src/pcloud-to-map/pcloud-to-map.cpp

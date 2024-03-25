@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     RCLCPP_INFO(node->get_logger(), "Using slam config file: %s", slam_config_file.c_str());
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    bool visualization = true;
+    bool visualization = false;
     ORB_SLAM3::System m_SLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
     MonoPcloudNode mono_orb(&m_SLAM, node.get());
     std::cout << "============================ " << std::endl;\

@@ -30,6 +30,16 @@ def generate_launch_description():
         name='image_stream',
     )
 
+    octomap_node = Node(
+        package='octomap_server',
+        executable='octomap_server_node',
+        name='octomap_server_node',
+        parameters=[{
+            "base_frame_id": "base_link",
+            "resolution": 0.01
+        }],
+    )
+
     img_view_node = Node(
         package='image_view',
         namespace='orbslam3',
@@ -81,10 +91,11 @@ def generate_launch_description():
 
     return LaunchDescription([
         orbslam3_node,
-        # rviz2,
+        rviz2,
+        octomap_node,
         # img_view_node,
         #tracking_view_node,
         # pcloud_to_map_node,
         # project_map,
-        # img_stream_node,
+        img_stream_node,
     ])

@@ -41,22 +41,26 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* p_node)
         std::bind(&MonoPcloudNode::GrabImage, this, std::placeholders::_1));
     map_frame_id = "map";
     pose_frame_id = "base_link";
+    octomap_frame_id = "octomap_frame_id";
     tf_orb_to_ros.setValue(0, 0, 1, -1, 0, 0, 0, -1, 0);
 
     pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
     map_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
-    tracked_p_array_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/tracked_p_array", 1000);
-    all_map_points_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/map_and_kf", 1000);
-    pcloud_all = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/pcloud_all", 1000);
+    tracked_p_array_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/tracked_p_array", qos);
+    all_map_points_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/map_and_kf", qos);
+    pcloud_all = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/pcloud_all", qos);
+    pub_image =  node->create_publisher<sensor_msgs::msg::Image>("~/tracking_image", qos);
 
-    std::shared_ptr<rclcpp::Node> image_transport_node = rclcpp::Node::make_shared("image_publisher");
-    image_transport::ImageTransport image_transport(image_transport_node);
-    rendered_image_pub = image_transport.advertise("~/tracking_image", 5);
+    // std::shared_ptr<rclcpp::Node> image_transport_node = rclcpp::Node::make_shared("image_publisher");
+    // image_transport::ImageTransport image_transport(image_transport_node);
+    // rendered_image_pub = image_transport.advertise("~/tracking_image", 5);
 
     m_image_subscriber = node->create_subscription<ImageMsg>(
         "/orbslam3/image_stream/image_raw",
         qos,
         std::bind(&MonoPcloudNode::GrabImage, this, std::placeholders::_1));
+
+    octomap_reset_client = node->create_client<std_srvs::srv::Empty>("octomap_server_node/reset");
 
     std::cout << "slam changed" << std::endl;
 }
@@ -224,28 +228,28 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     tf_msg.header.frame_id = map_frame_id;
     tf_msg.child_frame_id = pose_frame_id;
     tf2::Transform tf = MonoPcloudNode::from_orb_to_ros_tf_transform(Tcw);
-    tf_msg.transform = tf2::toMsg(tf);
+    tf_msg.transform = tf2::toMsg(tf.inverse());
 
-    // Eigen::Matrix4d transform_matrix;
-    // tf2::fromMsg(tf, transform_matrix);
+    Eigen::Matrix4d transform_matrix = tf2::transformToEigen(tf_msg).matrix();
 
     for (unsigned int i = 0; i < cloud.width; i++)
     {
         if (map_points[i])
         {
-            tf2::Vector3 target_translation;
             tf2::Vector3 point_translation(map_points[i]->GetWorldPos()(0),
                                            map_points[i]->GetWorldPos()(1),
                                            map_points[i]->GetWorldPos()(2));
 
             point_translation = tf_orb_to_ros * point_translation;
-            // Eigen::Vector4d point_homo(point_translation.x(), point_translation.y(), point_translation.z(), 1.0);
+            Eigen::Vector4d point_homo(point_translation.x(), point_translation.y(), point_translation.z(), 1.0);
 
-            // // Apply transform using matrix multiplication
-            // Eigen::Vector4d transformed_point = transform_matrix * point_homo;
-
+            // Apply transform using matrix multiplication
+            Eigen::Vector4d transformed_point = transform_matrix * point_homo;
             float data_array[num_channels] = {
-                point_translation.x(), point_translation.y(), point_translation.z()};
+                transformed_point[0], transformed_point[1], transformed_point[2]};
+
+            // float data_array[num_channels] = {
+            //     point_translation.x(), point_translation.y(), point_translation.z()};
 
             memcpy(cloud_data_ptr + (i * cloud.point_step), data_array,
                    num_channels * sizeof(float));
@@ -260,14 +264,14 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     j++;
 
     // sensor_msgs::msg::PointCloud2 target_cloud;
+    // pcl_ros::transformPointCloud(pose_frame_id, tf_msg , cloud, target_cloud);
 
-    // pcl_ros::transformPointCloud(map_frame_id, tf_msg , cloud, target_cloud);
     map_points_pub->publish(cloud);
     tracked_p_array_pub->publish(pt_array);
 }
 
 void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_time) {
-    if (m_SLAM->GetTrackingState() == 2) {
+    if (m_SLAM->getLoopClosing()->isMapReady()) {
         std::vector<ORB_SLAM3::MapPoint*> map_points = m_SLAM->getMap()->GetCurrentMap()->GetAllMapPoints();
         const int num_channels = 3; // x y z
 
@@ -329,15 +333,13 @@ void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_ti
 void MonoPcloudNode::publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
 {
     std_msgs::msg::Header header;
-    int j = 0;
     header.stamp = current_frame_time;
     header.frame_id = map_frame_id;
 
     const std::shared_ptr<sensor_msgs::msg::Image> rendered_image_msg =
         cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, image).toImageMsg();
 
-    rendered_image_pub.publish(rendered_image_msg);
-    j++;
+    pub_image->publish(*rendered_image_msg.get());
 }
 
 void MonoPcloudNode::publish_all_keyframes_points(const rclcpp::Time &current_frame_time) 

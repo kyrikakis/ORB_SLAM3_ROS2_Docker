@@ -14,8 +14,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <pcl_ros/transforms.hpp>
-
-#include <image_transport/image_transport.hpp>
+#include <std_srvs/srv/empty.hpp>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -39,6 +38,7 @@ private:
     using ImageMsg = sensor_msgs::msg::Image;
     std::string map_frame_id;
     std::string pose_frame_id;
+    std::string octomap_frame_id;
     tf2::Matrix3x3 tf_orb_to_ros;
 
     tf2::Transform from_orb_to_ros_tf_transform(cv::Mat transformation_mat);
@@ -63,9 +63,9 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr tracked_p_array_pub;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr all_map_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
-    image_transport::Publisher rendered_image_pub;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image;
 
-
+    rclcpp::Client<std_srvs::srv::Empty>::SharedPtr octomap_reset_client;
 };
 
 #endif

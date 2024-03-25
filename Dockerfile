@@ -56,7 +56,7 @@ RUN cd /tmp && git clone https://github.com/stevenlovegrove/Pangolin && \
     make -j$nproc && make install && \
     cd / && rm -rf /tmp/Pangolin
 
-# Build ORB_SLAM3
+# Clone ORB_SLAM3
 RUN mkdir -p /Datasets/EuRoC && \
     wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip -O /Datasets/EuRoC/MH01.zip && \
     unzip /Datasets/EuRoC/MH01.zip -d /Datasets/EuRoC/MH01 && rm /Datasets/EuRoC/MH01.zip
@@ -86,7 +86,7 @@ RUN apt install -y ros-humble-camera-calibration-parsers && \
     git clone -b humble https://github.com/ros-perception/pointcloud_to_laserscan.git && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
-RUN apt install -y gdbserver
+RUN apt install -y gdb gdbserver ros-humble-pcl-ros ros-humble-octomap-mapping ros-humble-octomap-rviz-plugins
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
