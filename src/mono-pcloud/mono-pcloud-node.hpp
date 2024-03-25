@@ -27,10 +27,10 @@
 
 #include <ctime>
 
-class MonoPcloudNode 
+class MonoPcloudNode
 {
 public:
-    MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* node);
+    MonoPcloudNode(ORB_SLAM3::System *pSLAM, rclcpp::Node *node);
 
     ~MonoPcloudNode();
 
@@ -45,8 +45,11 @@ private:
     void publish_tf_transform(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time);
     void publish_pose_stamped(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time);
     void publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
-    void publish_keyframe_points(tf2::Transform tf, std::string child_frame_id, std::vector<ORB_SLAM3::MapPoint *> map_points, 
-        const rclcpp::Time &current_frame_time);
+    void publish_keyframe_points(tf2::Transform tf,
+                                 std::string child_frame_id,
+                                 std::vector<ORB_SLAM3::MapPoint *> map_points,
+                                 rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr points_pub, 
+                                 const rclcpp::Time &current_frame_time);
     void publish_all_keyframes_points(const rclcpp::Time &current_frame_time);
     void publish_all_map_points(const rclcpp::Time &current_frame_time);
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -60,11 +63,13 @@ private:
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_points_pub;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr all_map_points_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr octomap_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image;
 
     rclcpp::Client<std_srvs::srv::Empty>::SharedPtr octomap_reset_client;
+
+    int number_of_frames = 0;
 };
 
 #endif

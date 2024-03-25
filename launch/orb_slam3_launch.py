@@ -35,7 +35,7 @@ def generate_launch_description():
         executable='octomap_server_node',
         name='octomap_server_node',
         parameters=[{
-            "base_frame_id": "base_link",
+            "base_frame_id": "octomap_link",
             "resolution": 0.01
         }],
     )
