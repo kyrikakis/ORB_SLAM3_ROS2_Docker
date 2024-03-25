@@ -46,7 +46,6 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System* pSLAM, rclcpp::Node* p_node)
 
     pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
     map_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
-    tracked_p_array_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/tracked_p_array", qos);
     all_map_points_pub = node->create_publisher<geometry_msgs::msg::PoseArray>("~/map_and_kf", qos);
     pcloud_all = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/pcloud_all", qos);
     pub_image =  node->create_publisher<sensor_msgs::msg::Image>("~/tracking_image", qos);
@@ -116,19 +115,6 @@ tf2::Transform MonoPcloudNode::from_orb_to_ros_tf_transform(cv::Mat transformati
     return tf2::Transform(tf_camera_rotation, tf_camera_translation);
 }
 
-void MonoPcloudNode::publish_ros_pose_tf(cv::Mat Tcw, rclcpp::Time current_frame_time)
-{
-    if (!Tcw.empty())
-    {
-        tf2::Transform tf_transform =
-            from_orb_to_ros_tf_transform(Tcw);
-
-        publish_tf_transform(tf_transform, pose_frame_id, current_frame_time);
-
-        publish_pose_stamped(tf_transform, current_frame_time);
-    }
-}
-
 void MonoPcloudNode::publish_tf_transform(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time)
 {
     static tf2_ros::TransformBroadcaster tf_broadcaster(node);
@@ -145,11 +131,11 @@ void MonoPcloudNode::publish_tf_transform(tf2::Transform tf_transform, std::stri
     tf_broadcaster.sendTransform(tf_msg);
 }
 
-void MonoPcloudNode::publish_pose_stamped(tf2::Transform tf_transform, rclcpp::Time current_frame_time)
+void MonoPcloudNode::publish_pose_stamped(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time)
 {
     std_msgs::msg::Header header;
     header.stamp = current_frame_time;
-    header.frame_id = pose_frame_id;
+    header.frame_id = child_frame_id;
 
     geometry_msgs::msg::Pose pose;
     tf2::toMsg(tf_transform, pose);
@@ -161,8 +147,9 @@ void MonoPcloudNode::publish_pose_stamped(tf2::Transform tf_transform, rclcpp::T
     pose_pub->publish(pose_msg);
 }
 
-void MonoPcloudNode::publish_ros_tracking_mappoints(
-    cv::Mat Tcw,
+void MonoPcloudNode::publish_keyframe_points(
+    tf2::Transform tf,
+    std::string child_frame_id,
     std::vector<ORB_SLAM3::MapPoint *> map_points,
     const rclcpp::Time &current_frame_time)
 {
@@ -176,7 +163,7 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
     sensor_msgs::msg::PointCloud2 cloud;
     int j = 0;
     cloud.header.stamp = current_frame_time;
-    cloud.header.frame_id = pose_frame_id;
+    cloud.header.frame_id = child_frame_id;
     cloud.height = 1;
     cloud.width = map_points.size();
     cloud.is_bigendian = false;
@@ -199,35 +186,13 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
 
     unsigned char *cloud_data_ptr = &(cloud.data[0]);
 
-    cv::Mat Rwc = Tcw.rowRange(0, 3).colRange(0, 3).t();
-    cv::Mat twc = -Rwc*Tcw.rowRange(0, 3).col(3);
-    vector<float> q = ORB_SLAM3::Converter::toQuaternion(Rwc);
-
-    geometry_msgs::msg::PoseArray pt_array;
-    pt_array.header.stamp = current_frame_time;
-
-    geometry_msgs::msg::Pose camera_pose;
-
-    camera_pose.position.x = twc.at<float>(0);
-    camera_pose.position.y = twc.at<float>(1);
-    camera_pose.position.z = twc.at<float>(2);
-
-    camera_pose.orientation.x = q[0];
-    camera_pose.orientation.y = q[1];
-    camera_pose.orientation.z = q[2];
-    camera_pose.orientation.w = q[3];
-
-    pt_array.poses.push_back(camera_pose);
-
     std_msgs::msg::Header header;
     header.stamp = current_frame_time;
     header.frame_id = map_frame_id;
 
     geometry_msgs::msg::TransformStamped tf_msg;
     tf_msg.header = header;
-    tf_msg.header.frame_id = map_frame_id;
-    tf_msg.child_frame_id = pose_frame_id;
-    tf2::Transform tf = MonoPcloudNode::from_orb_to_ros_tf_transform(Tcw);
+    tf_msg.child_frame_id = child_frame_id;
     tf_msg.transform = tf2::toMsg(tf.inverse());
 
     Eigen::Matrix4d transform_matrix = tf2::transformToEigen(tf_msg).matrix();
@@ -248,26 +213,13 @@ void MonoPcloudNode::publish_ros_tracking_mappoints(
             float data_array[num_channels] = {
                 transformed_point[0], transformed_point[1], transformed_point[2]};
 
-            // float data_array[num_channels] = {
-            //     point_translation.x(), point_translation.y(), point_translation.z()};
-
             memcpy(cloud_data_ptr + (i * cloud.point_step), data_array,
                    num_channels * sizeof(float));
-            
-            geometry_msgs::msg::Pose curr_pt;
-            curr_pt.position.x = point_translation.x();
-			curr_pt.position.y = point_translation.y();
-			curr_pt.position.z = point_translation.z();
-			pt_array.poses.push_back(curr_pt);
         }
     }
     j++;
 
-    // sensor_msgs::msg::PointCloud2 target_cloud;
-    // pcl_ros::transformPointCloud(pose_frame_id, tf_msg , cloud, target_cloud);
-
     map_points_pub->publish(cloud);
-    tracked_p_array_pub->publish(pt_array);
 }
 
 void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_time) {
@@ -330,7 +282,7 @@ void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_ti
     }
 }
 
-void MonoPcloudNode::publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
+void MonoPcloudNode::publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
 {
     std_msgs::msg::Header header;
     header.stamp = current_frame_time;
@@ -427,11 +379,18 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
     try {
         cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
 
-        publish_ros_pose_tf(Tcw, current_frame_time);
-        publish_ros_tracking_mappoints(Tcw, m_SLAM->GetTrackedMapPoints(), current_frame_time);
-        publish_ros_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
-        publish_all_keyframes_points(current_frame_time);
-        publish_all_map_points(current_frame_time);
+        if (!Tcw.empty())
+        {
+            tf2::Transform tf_transform =
+                from_orb_to_ros_tf_transform(Tcw);
+
+            publish_tf_transform(tf_transform, pose_frame_id, current_frame_time);
+            publish_pose_stamped(tf_transform, pose_frame_id, current_frame_time);
+            publish_keyframe_points(tf_transform, pose_frame_id, m_SLAM->GetTrackedMapPoints(), current_frame_time);
+            publish_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
+            publish_all_keyframes_points(current_frame_time);
+            publish_all_map_points(current_frame_time);
+        }
     }
     catch (const runtime_error& e) {
         RCLCPP_ERROR(node->get_logger(), "m_SLAM exception: %s", e.what());

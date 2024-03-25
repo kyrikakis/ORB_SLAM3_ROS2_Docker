@@ -42,11 +42,11 @@ private:
     tf2::Matrix3x3 tf_orb_to_ros;
 
     tf2::Transform from_orb_to_ros_tf_transform(cv::Mat transformation_mat);
-    void publish_ros_pose_tf(cv::Mat Tcw, rclcpp::Time current_frame_time);
     void publish_tf_transform(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time);
-    void publish_pose_stamped(tf2::Transform tf_transform, rclcpp::Time current_frame_time);
-    void publish_ros_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
-    void publish_ros_tracking_mappoints(cv::Mat Tcw, std::vector<ORB_SLAM3::MapPoint *> map_points, const rclcpp::Time &current_frame_time);
+    void publish_pose_stamped(tf2::Transform tf_transform, std::string child_frame_id, rclcpp::Time current_frame_time);
+    void publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time);
+    void publish_keyframe_points(tf2::Transform tf, std::string child_frame_id, std::vector<ORB_SLAM3::MapPoint *> map_points, 
+        const rclcpp::Time &current_frame_time);
     void publish_all_keyframes_points(const rclcpp::Time &current_frame_time);
     void publish_all_map_points(const rclcpp::Time &current_frame_time);
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -60,7 +60,6 @@ private:
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_points_pub;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr tracked_p_array_pub;
     rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr all_map_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image;
