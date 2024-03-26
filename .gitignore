@@ -6,5 +6,6 @@ build/
 install/
 log/
 bags/
+launch/__pycache__/
 CameraTrajectory.txt
 KeyFrameTrajectory.txt

@@ -30,7 +30,7 @@
 class MonoPcloudNode
 {
 public:
-    MonoPcloudNode(ORB_SLAM3::System *pSLAM, rclcpp::Node *node);
+    MonoPcloudNode(ORB_SLAM3::System *pSLAM, std::shared_ptr<rclcpp::Node> node);
 
     ~MonoPcloudNode();
 
@@ -50,12 +50,12 @@ private:
                                  std::vector<ORB_SLAM3::MapPoint *> map_points,
                                  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr points_pub, 
                                  const rclcpp::Time &current_frame_time);
-    void publish_all_keyframes_points(const rclcpp::Time &current_frame_time);
+    void publish_all_keyframes_points();
     void publish_all_map_points(const rclcpp::Time &current_frame_time);
     void GrabImage(const sensor_msgs::msg::Image::SharedPtr msg);
 
     ORB_SLAM3::System *m_SLAM;
-    rclcpp::Node *node;
+    std::shared_ptr<rclcpp::Node> node;
 
     cv_bridge::CvImagePtr m_cvImPtr;
 
@@ -70,6 +70,8 @@ private:
     rclcpp::Client<std_srvs::srv::Empty>::SharedPtr octomap_reset_client;
 
     int number_of_frames = 0;
+    bool tracking_lost = true;
+    bool is_octomap_resetting = false;
 };
 
 #endif

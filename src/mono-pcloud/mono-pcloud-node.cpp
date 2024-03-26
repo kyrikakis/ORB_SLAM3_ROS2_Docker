@@ -7,32 +7,19 @@
 
 using std::placeholders::_1;
 
-MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM, rclcpp::Node *p_node)
+MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM, std::shared_ptr<rclcpp::Node> p_node)
 {
     m_SLAM = pSLAM;
     node = p_node;
-    size_t depth = 10;
-    rmw_qos_reliability_policy_t reliability_policy = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
-    rmw_qos_history_policy_t history_policy = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
 
     rmw_qos_profile_t qos_profile = rmw_qos_profile_default;
-
-    // Depth represents how many messages to store in history when the history policy is KEEP_LAST.
-    qos_profile.depth = depth;
-
-    // The reliability policy can be reliable, meaning that the underlying transport layer will try
-    // ensure that every message gets received in order, or best effort, meaning that the transport
-    // makes no guarantees about the order or reliability of delivery.
-    qos_profile.reliability = reliability_policy;
-
-    // The history policy determines how messages are saved until the message is taken by the reader.
-    // KEEP_ALL saves all messages until they are taken.
-    // KEEP_LAST enforces a limit on the number of messages that are saved, specified by the "depth"
-    // parameter.
-    qos_profile.history = history_policy;
-
     auto qos = rclcpp::QoS(
         rclcpp::QoSInitialization::from_rmw(qos_profile));
+
+    rmw_qos_profile_t qos_profile_reliable = rmw_qos_profile_parameters;
+    qos_profile_reliable.durability = RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL;
+    auto qos_reliable = rclcpp::QoS(
+        rclcpp::QoSInitialization::from_rmw(qos_profile_reliable));
 
     // std::cout << "slam changed" << std::endl;
     m_image_subscriber = node->create_subscription<ImageMsg>(
@@ -46,7 +33,7 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM, rclcpp::Node *p_node)
 
     pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("~/camera_pose", qos);
     map_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/keyframe_points", qos);
-    octomap_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos);
+    octomap_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos_reliable);
     pcloud_all = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/pcloud_all", qos);
     pub_image = node->create_publisher<sensor_msgs::msg::Image>("~/tracking_image", qos);
 
@@ -59,7 +46,7 @@ MonoPcloudNode::MonoPcloudNode(ORB_SLAM3::System *pSLAM, rclcpp::Node *p_node)
         qos,
         std::bind(&MonoPcloudNode::GrabImage, this, std::placeholders::_1));
 
-    octomap_reset_client = node->create_client<std_srvs::srv::Empty>("octomap_server_node/reset");
+    octomap_reset_client = node->create_client<std_srvs::srv::Empty>("/octomap_server_node/reset");
 
     std::cout << "slam changed" << std::endl;
 }
@@ -72,6 +59,18 @@ MonoPcloudNode::~MonoPcloudNode()
 
     // Save camera trajectory
     m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+}
+
+void MonoPcloudNode::publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
+{
+    std_msgs::msg::Header header;
+    header.stamp = current_frame_time;
+    header.frame_id = map_frame_id;
+
+    const std::shared_ptr<sensor_msgs::msg::Image> rendered_image_msg =
+        cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, image).toImageMsg();
+
+    pub_image->publish(*rendered_image_msg.get());
 }
 
 tf2::Transform MonoPcloudNode::from_orb_to_ros_tf_transform(cv::Mat transformation_mat)
@@ -92,11 +91,6 @@ tf2::Transform MonoPcloudNode::from_orb_to_ros_tf_transform(cv::Mat transformati
     tf2::Vector3 tf_camera_translation(orb_translation.at<float>(0),
                                        orb_translation.at<float>(1),
                                        orb_translation.at<float>(2));
-
-    // cout << setprecision(9) << "Rotation: " << endl << orb_rotation << endl;
-    // cout << setprecision(9) << "Translation xyz: " << orb_translation.at<float>
-    // (0) << " " << orb_translation.at<float> (1) << " " <<
-    // orb_translation.at<float> (2) << endl;
 
     // Transform from orb coordinate system to ros coordinate system on camera
     // coordinates
@@ -147,6 +141,62 @@ void MonoPcloudNode::publish_pose_stamped(tf2::Transform tf_transform, std::stri
     pose_pub->publish(pose_msg);
 }
 
+void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_time)
+{
+    std::vector<ORB_SLAM3::MapPoint *> map_points = m_SLAM->getMap()->GetCurrentMap()->GetAllMapPoints();
+    const int num_channels = 3; // x y z
+
+    if (map_points.size() == 0)
+    {
+        return;
+    }
+
+    sensor_msgs::msg::PointCloud2 cloud;
+    cloud.header.stamp = current_frame_time;
+    cloud.header.frame_id = map_frame_id;
+    cloud.height = 1;
+    cloud.width = map_points.size();
+    cloud.is_bigendian = false;
+    cloud.is_dense = true;
+    cloud.point_step = num_channels * sizeof(float);
+    cloud.row_step = cloud.point_step * cloud.width;
+    cloud.fields.resize(num_channels);
+
+    std::string channel_id[] = {"x", "y", "z"};
+
+    for (int i = 0; i < num_channels; i++)
+    {
+        cloud.fields[i].name = channel_id[i];
+        cloud.fields[i].offset = i * sizeof(float);
+        cloud.fields[i].count = 1;
+        cloud.fields[i].datatype = sensor_msgs::msg::PointField::FLOAT32;
+    }
+
+    cloud.data.resize(cloud.row_step * cloud.height);
+
+    unsigned char *cloud_data_ptr = &(cloud.data[0]);
+
+    for (unsigned int i = 0; i < cloud.width; i++)
+    {
+        if (map_points[i])
+        {
+
+            tf2::Vector3 point_translation(map_points[i]->GetWorldPos()(0),
+                                            map_points[i]->GetWorldPos()(1),
+                                            map_points[i]->GetWorldPos()(2));
+
+            point_translation = tf_orb_to_ros * point_translation;
+
+            float data_array[num_channels] = {
+                point_translation.x(), point_translation.y(), point_translation.z()};
+
+            memcpy(cloud_data_ptr + (i * cloud.point_step), data_array,
+                    num_channels * sizeof(float));
+        }
+    }
+    pcloud_all->publish(cloud);
+}
+
 void MonoPcloudNode::publish_keyframe_points(
     tf2::Transform tf,
     std::string child_frame_id,
@@ -158,7 +208,7 @@ void MonoPcloudNode::publish_keyframe_points(
 
     if (map_points.size() == 0)
     {
-        std::cout << "Map point vector is empty!" << std::endl;
+        return;
     }
 
     sensor_msgs::msg::PointCloud2 cloud;
@@ -219,176 +269,34 @@ void MonoPcloudNode::publish_keyframe_points(
         }
     }
     j++;
-
     points_pub->publish(cloud);
 }
 
-void MonoPcloudNode::publish_all_map_points(const rclcpp::Time &current_frame_time)
+void MonoPcloudNode::publish_all_keyframes_points()
 {
-    if (number_of_frames == 10)
+    RCLCPP_INFO(node->get_logger(), "Publish keyframes to octomap");
+
+    vector<ORB_SLAM3::KeyFrame *> key_frames = m_SLAM->getMap()->GetAllKeyFrames();
+    sort(key_frames.begin(), key_frames.end(), ORB_SLAM3::KeyFrame::lId);
+    unsigned int n_kf = 0;
+    for (auto key_frame : key_frames)
     {
-        std::vector<ORB_SLAM3::MapPoint *> map_points = m_SLAM->getMap()->GetCurrentMap()->GetAllMapPoints();
-        const int num_channels = 3; // x y z
+        auto keyframe_time = node->get_clock()->now();
+        if (key_frame->isBad())
+            continue;
 
-        if (map_points.size() == 0)
-        {
-            std::cout << "Map point vector is empty!" << std::endl;
-        }
+        cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(key_frame->GetPose().matrix());
+        tf2::Transform tf =
+            from_orb_to_ros_tf_transform(Tcw);
 
-        sensor_msgs::msg::PointCloud2 cloud;
-        int j = 0;
-        cloud.header.stamp = current_frame_time;
-        cloud.header.frame_id = map_frame_id;
-        cloud.height = 1;
-        cloud.width = map_points.size();
-        cloud.is_bigendian = false;
-        cloud.is_dense = true;
-        cloud.point_step = num_channels * sizeof(float);
-        cloud.row_step = cloud.point_step * cloud.width;
-        cloud.fields.resize(num_channels);
+        publish_tf_transform(tf, octomap_frame_id, keyframe_time);
 
-        std::string channel_id[] = {"x", "y", "z"};
-
-        for (int i = 0; i < num_channels; i++)
-        {
-            cloud.fields[i].name = channel_id[i];
-            cloud.fields[i].offset = i * sizeof(float);
-            cloud.fields[i].count = 1;
-            cloud.fields[i].datatype = sensor_msgs::msg::PointField::FLOAT32;
-        }
-
-        cloud.data.resize(cloud.row_step * cloud.height);
-
-        unsigned char *cloud_data_ptr = &(cloud.data[0]);
-
-        for (unsigned int i = 0; i < cloud.width; i++)
-        {
-            if (map_points[i])
-            {
-
-                tf2::Vector3 point_translation(map_points[i]->GetWorldPos()(0),
-                                               map_points[i]->GetWorldPos()(1),
-                                               map_points[i]->GetWorldPos()(2));
-
-                point_translation = tf_orb_to_ros * point_translation;
-
-                float data_array[num_channels] = {
-                    point_translation.x(), point_translation.y(), point_translation.z()};
-
-                memcpy(cloud_data_ptr + (i * cloud.point_step), data_array,
-                       num_channels * sizeof(float));
-            }
-        }
-        j++;
-
-        pcloud_all->publish(cloud);
-    }
-}
-
-void MonoPcloudNode::publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
-{
-    std_msgs::msg::Header header;
-    header.stamp = current_frame_time;
-    header.frame_id = map_frame_id;
-
-    const std::shared_ptr<sensor_msgs::msg::Image> rendered_image_msg =
-        cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, image).toImageMsg();
-
-    pub_image->publish(*rendered_image_msg.get());
-}
-
-void MonoPcloudNode::publish_all_keyframes_points(const rclcpp::Time &current_frame_time)
-{
-    if (m_SLAM->getLoopClosing()->isMapReady())
-    {
-        RCLCPP_INFO(node->get_logger(), "Loop detected");
-
-        auto request = std::make_shared<std_srvs::srv::Empty_Request>();
-        auto future_result = octomap_reset_client->async_send_request(request);
-
-        vector<ORB_SLAM3::KeyFrame *> key_frames = m_SLAM->getMap()->GetAllKeyFrames();
-        sort(key_frames.begin(), key_frames.end(), ORB_SLAM3::KeyFrame::lId);
-        unsigned int n_kf = 0;
-        for (auto key_frame : key_frames)
-        {
-            if (key_frame->isBad())
-                continue;
-
-            cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(key_frame->GetPose().matrix());
-            tf2::Transform tf =
-                from_orb_to_ros_tf_transform(Tcw);
-
-            publish_tf_transform(tf, octomap_frame_id, current_frame_time);
-
-            std::set<ORB_SLAM3::MapPoint *> map_points = key_frame->GetMapPoints();
-
-            const int num_channels = 3; // x y z
-
-            if (map_points.size() == 0)
-            {
-                std::cout << "Map point vector is empty!" << std::endl;
-            }
-
-            sensor_msgs::msg::PointCloud2 cloud;
-            int j = 0;
-            cloud.header.stamp = current_frame_time;
-            cloud.header.frame_id = octomap_frame_id;
-            cloud.height = 1;
-            cloud.width = map_points.size();
-            cloud.is_bigendian = false;
-            cloud.is_dense = true;
-            cloud.point_step = num_channels * sizeof(float);
-            cloud.row_step = cloud.point_step * cloud.width;
-            cloud.fields.resize(num_channels);
-
-            std::string channel_id[] = {"x", "y", "z"};
-
-            for (int i = 0; i < num_channels; i++)
-            {
-                cloud.fields[i].name = channel_id[i];
-                cloud.fields[i].offset = i * sizeof(float);
-                cloud.fields[i].count = 1;
-                cloud.fields[i].datatype = sensor_msgs::msg::PointField::FLOAT32;
-            }
-
-            cloud.data.resize(cloud.row_step * cloud.height);
-
-            unsigned char *cloud_data_ptr = &(cloud.data[0]);
-
-            std_msgs::msg::Header header;
-            header.stamp = current_frame_time;
-            header.frame_id = map_frame_id;
-
-            geometry_msgs::msg::TransformStamped tf_msg;
-            tf_msg.header = header;
-            tf_msg.child_frame_id = octomap_frame_id;
-            tf_msg.transform = tf2::toMsg(tf.inverse());
-
-            Eigen::Matrix4d transform_matrix = tf2::transformToEigen(tf_msg).matrix();
-
-            unsigned int i = 0;
-            for (auto map_pt : map_points)
-            {
-                tf2::Vector3 point_translation(map_pt->GetWorldPos()(0),
-                                               map_pt->GetWorldPos()(1),
-                                               map_pt->GetWorldPos()(2));
-
-                point_translation = tf_orb_to_ros * point_translation;
-                Eigen::Vector4d point_homo(point_translation.x(), point_translation.y(), point_translation.z(), 1.0);
-
-                // Apply transform using matrix multiplication
-                Eigen::Vector4d transformed_point = transform_matrix * point_homo;
-                float data_array[num_channels] = {
-                    transformed_point[0], transformed_point[1], transformed_point[2]};
-
-                memcpy(cloud_data_ptr + (i * cloud.point_step), data_array,
-                       num_channels * sizeof(float));
-                i++;
-            }
-            octomap_points_pub->publish(cloud);
-            ++n_kf;
-        }
-        printf("Publishing data for %u keyfranmes\n", n_kf);
+        std::set<ORB_SLAM3::MapPoint *> map_points = key_frame->GetMapPoints();
+        std::vector map_points_vector(map_points.begin(), map_points.end());
+        publish_keyframe_points(tf, octomap_frame_id, map_points_vector, octomap_points_pub, keyframe_time);
+        ++n_kf;
+        RCLCPP_INFO(node->get_logger(), "Publishing %u cloudpoints for %u keyframe", map_points_vector.size(), n_kf);
+        std::this_thread::sleep_for(20ms);
     }
 }
 
@@ -405,31 +313,66 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
         return;
     }
     rclcpp::Time current_frame_time = msg->header.stamp;
-    // RCLCPP_INFO(node->get_logger(), "Frame received");
     try
     {
         number_of_frames++;
         cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
 
-        if (!Tcw.empty())
+        if (m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::OK ||
+            m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::RECENTLY_LOST)
         {
-            tf2::Transform tf_transform =
-                from_orb_to_ros_tf_transform(Tcw);
+            if (!Tcw.empty())
+            {
+                tf2::Transform tf_transform =
+                    from_orb_to_ros_tf_transform(Tcw);
 
-            // Rviz2
-            publish_tf_transform(tf_transform, pose_frame_id, current_frame_time);
-            publish_pose_stamped(tf_transform, pose_frame_id, current_frame_time);
-            publish_keyframe_points(tf_transform, pose_frame_id, m_SLAM->GetTrackedMapPoints(),
-                                    map_points_pub, current_frame_time);
-            publish_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
-            publish_all_map_points(current_frame_time);
+                // Rviz2
+                publish_tf_transform(tf_transform, pose_frame_id, current_frame_time);
+                publish_pose_stamped(tf_transform, pose_frame_id, current_frame_time);
+                publish_keyframe_points(tf_transform, pose_frame_id, m_SLAM->GetTrackedMapPoints(),
+                                        map_points_pub, current_frame_time);
+                publish_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
+                if (number_of_frames == 10)
+                {
+                    publish_all_map_points(current_frame_time);
+                }
 
-            // Octomap
-            publish_tf_transform(tf_transform, octomap_frame_id, current_frame_time);
-            publish_keyframe_points(tf_transform, octomap_frame_id, m_SLAM->GetTrackedMapPoints(),
-                                    octomap_points_pub, current_frame_time);
-            publish_all_keyframes_points(current_frame_time);
+                // Octomap
+                if (!is_octomap_resetting)
+                {
+                    publish_tf_transform(tf_transform, octomap_frame_id, current_frame_time);
+                    publish_keyframe_points(tf_transform, octomap_frame_id, m_SLAM->GetTrackedMapPoints(),
+                                            octomap_points_pub, current_frame_time);
+                }
+
+                if (m_SLAM->getLoopClosing()->isMapReady() || tracking_lost)
+                {
+                    // Octomap reset
+                    RCLCPP_INFO(node->get_logger(), "Resetting Octomap");
+                    is_octomap_resetting = true;
+                    auto request = std::make_shared<std_srvs::srv::Empty_Request>();
+
+                    using ServiceResponseFuture =
+                        rclcpp::Client<std_srvs::srv::Empty>::SharedFutureWithRequest;
+
+                    auto response_received_callback =
+                        [logger = node->get_logger(), this](ServiceResponseFuture future)
+                    {
+                        auto request_response_pair = future.get();
+                        MonoPcloudNode::publish_all_keyframes_points();
+                        MonoPcloudNode::is_octomap_resetting = false;
+                    };
+
+                    octomap_reset_client->async_send_request(request, std::move(response_received_callback));
+                }
+            }
+            tracking_lost = false;
         }
+        else
+        {
+            tracking_lost = true;
+        }
+
         if (number_of_frames > 10)
         {
             number_of_frames = 0;

@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     bool visualization = false;
     ORB_SLAM3::System m_SLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::MONOCULAR, visualization);
-    MonoPcloudNode mono_orb(&m_SLAM, node.get());
+    MonoPcloudNode mono_orb(&m_SLAM, node);
     std::cout << "============================ " << std::endl;\
 
     rclcpp::spin(node);
