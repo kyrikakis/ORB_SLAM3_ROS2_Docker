@@ -36,7 +36,12 @@ def generate_launch_description():
         name='octomap_server_node',
         parameters=[{
             "base_frame_id": "octomap_link",
-            "resolution": 0.01
+            "resolution": 0.01,
+            "filter_speckles": True,
+            # "sensor_model.max_range": 5.0,
+            # "use_height_map": True,
+            # "point_cloud_min_z": 0.0,
+            # "point_cloud_max_z": 3.0,
         }],
     )
 
@@ -94,7 +99,7 @@ def generate_launch_description():
         rviz2,
         octomap_node,
         # img_view_node,
-        #tracking_view_node,
+        # tracking_view_node,
         # pcloud_to_map_node,
         # project_map,
         img_stream_node,

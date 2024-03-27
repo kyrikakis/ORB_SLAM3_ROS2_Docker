@@ -291,13 +291,14 @@ void MonoPcloudNode::publish_all_keyframes_points()
 
         publish_tf_transform(tf, octomap_frame_id, keyframe_time);
 
+        std::this_thread::sleep_for(40ms);
         std::set<ORB_SLAM3::MapPoint *> map_points = key_frame->GetMapPoints();
         std::vector map_points_vector(map_points.begin(), map_points.end());
         publish_keyframe_points(tf, octomap_frame_id, map_points_vector, octomap_points_pub, keyframe_time);
         ++n_kf;
         RCLCPP_INFO(node->get_logger(), "Publishing %u cloudpoints for %u keyframe", map_points_vector.size(), n_kf);
-        std::this_thread::sleep_for(20ms);
     }
+    is_octomap_resetting = false;
 }
 
 void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
@@ -318,6 +319,8 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
         number_of_frames++;
         cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(m_SLAM->TrackMonocular(m_cvImPtr->image, Utility::StampToSec(msg->header.stamp)).matrix());
 
+        publish_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
+        
         if (m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::OK ||
             m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::RECENTLY_LOST)
         {
@@ -331,7 +334,6 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
                 publish_pose_stamped(tf_transform, pose_frame_id, current_frame_time);
                 publish_keyframe_points(tf_transform, pose_frame_id, m_SLAM->GetTrackedMapPoints(),
                                         map_points_pub, current_frame_time);
-                publish_tracking_img(m_SLAM->GetCurrentFrame(), current_frame_time);
                 if (number_of_frames == 10)
                 {
                     publish_all_map_points(current_frame_time);
@@ -358,15 +360,15 @@ void MonoPcloudNode::GrabImage(const ImageMsg::SharedPtr msg)
                     auto response_received_callback =
                         [logger = node->get_logger(), this](ServiceResponseFuture future)
                     {
-                        auto request_response_pair = future.get();
-                        MonoPcloudNode::publish_all_keyframes_points();
-                        MonoPcloudNode::is_octomap_resetting = false;
+                        // std::shared_ptr<MonoPcloudNode> node = std::make_shared<MonoPcloudNode>(this);
+                        std::thread *m_thread = new std::thread(&MonoPcloudNode::publish_all_keyframes_points, this);
+                        m_thread->detach();
                     };
 
+                    tracking_lost = false;
                     octomap_reset_client->async_send_request(request, std::move(response_received_callback));
                 }
             }
-            tracking_lost = false;
         }
         else
         {

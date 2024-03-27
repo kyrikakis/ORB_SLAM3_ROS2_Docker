@@ -34,7 +34,6 @@ public:
 
     ~MonoPcloudNode();
 
-private:
     using ImageMsg = sensor_msgs::msg::Image;
     std::string map_frame_id;
     std::string pose_frame_id;
