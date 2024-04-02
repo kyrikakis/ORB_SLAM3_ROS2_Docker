@@ -60,6 +60,7 @@ add_executable(mono
 ament_target_dependencies(mono rclcpp sensor_msgs cv_bridge ORB_SLAM3 Pangolin OpenCV)
 
 add_executable(mono-pcloud
+  src/commons/commons.cpp
   src/mono-pcloud/mono-pcloud.cpp
   src/mono-pcloud/mono-pcloud-node.cpp
 )
