@@ -17,10 +17,10 @@
 
 #include "utility.hpp"
 
-class StereoSlamNode : public rclcpp::Node
+class StereoSlamNode
 {
 public:
-    StereoSlamNode(ORB_SLAM3::System* pSLAM, const string &strSettingsFile, const string &strDoRectify);
+    StereoSlamNode(ORB_SLAM3::System* pSLAM, std::shared_ptr<rclcpp::Node> node, const string &strSettingsFile, const bool doRectify);
 
     ~StereoSlamNode();
 
@@ -30,7 +30,8 @@ private:
 
     void GrabStereo(const sensor_msgs::msg::Image::SharedPtr msgRGB, const sensor_msgs::msg::Image::SharedPtr msgD);
 
-    ORB_SLAM3::System* m_SLAM;
+    ORB_SLAM3::System *m_SLAM;
+    std::shared_ptr<rclcpp::Node> node;
 
     bool doRectify;
     cv::Mat M1l,M2l,M1r,M2r;

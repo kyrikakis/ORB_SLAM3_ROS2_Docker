@@ -17,15 +17,17 @@ int main(int argc, char **argv)
     }
 
     rclcpp::init(argc, argv);
+    std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("orb_slam3");
 
-    // malloc error using new.. try shared ptr
-    // Create SLAM system. It initializes all system threads and gets ready to process frames.
+    node->declare_parameter("vocabulary_file", ""); 
+    node->declare_parameter("slam_config_file", "");
+    std::string vocabulary_file = node->get_parameter("vocabulary_file").as_string(); 
+    std::string slam_config_file = node->get_parameter("slam_config_file").as_string(); 
 
-    bool visualization = true;
-    ORB_SLAM3::System pSLAM(argv[1], argv[2], ORB_SLAM3::System::STEREO, visualization);
+    bool visualization = false;
+    ORB_SLAM3::System pSLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::STEREO, visualization);
 
-    auto node = std::make_shared<StereoSlamNode>(&pSLAM, argv[2], argv[3]);
-    std::cout << "============================ " << std::endl;
+    StereoSlamNode stereo(&pSLAM, node, slam_config_file, true);
 
     rclcpp::spin(node);
     rclcpp::shutdown();

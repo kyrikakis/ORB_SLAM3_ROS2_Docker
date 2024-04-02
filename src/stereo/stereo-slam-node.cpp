@@ -5,13 +5,10 @@
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-StereoSlamNode::StereoSlamNode(ORB_SLAM3::System* pSLAM, const string &strSettingsFile, const string &strDoRectify)
-:   Node("ORB_SLAM3_ROS2"),
-    m_SLAM(pSLAM)
+StereoSlamNode::StereoSlamNode(ORB_SLAM3::System* pSLAM, std::shared_ptr<rclcpp::Node> p_node, const string &strSettingsFile, const bool doRectify)
 {
-    stringstream ss(strDoRectify);
-    ss >> boolalpha >> doRectify;
-
+    m_SLAM = pSLAM;
+    node = p_node;
     if (doRectify){
 
         cv::FileStorage fsSettings(strSettingsFile, cv::FileStorage::READ);
@@ -48,8 +45,8 @@ StereoSlamNode::StereoSlamNode(ORB_SLAM3::System* pSLAM, const string &strSettin
         cv::initUndistortRectifyMap(K_r,D_r,R_r,P_r.rowRange(0,3).colRange(0,3),cv::Size(cols_r,rows_r),CV_32F,M1r,M2r);
     }
 
-    left_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(shared_ptr<rclcpp::Node>(this), "camera/left");
-    right_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(shared_ptr<rclcpp::Node>(this), "camera/right");
+    left_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(shared_ptr<rclcpp::Node>(node), "camera/left");
+    right_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(shared_ptr<rclcpp::Node>(node), "camera/right");
 
     syncApproximate = std::make_shared<message_filters::Synchronizer<approximate_sync_policy> >(approximate_sync_policy(10), *left_sub, *right_sub);
     syncApproximate->registerCallback(&StereoSlamNode::GrabStereo, this);
@@ -73,7 +70,7 @@ void StereoSlamNode::GrabStereo(const ImageMsg::SharedPtr msgLeft, const ImageMs
     }
     catch (cv_bridge::Exception& e)
     {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        RCLCPP_ERROR(node->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
 
@@ -84,7 +81,7 @@ void StereoSlamNode::GrabStereo(const ImageMsg::SharedPtr msgLeft, const ImageMs
     }
     catch (cv_bridge::Exception& e)
     {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        RCLCPP_ERROR(node->get_logger(), "cv_bridge exception: %s", e.what());
         return;
     }
 
