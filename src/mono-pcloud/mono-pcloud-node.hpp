@@ -33,11 +33,6 @@ public:
     cv_bridge::CvImagePtr m_cvImPtr;
 
     rclcpp::Subscription<ImageMsg>::SharedPtr m_image_subscriber;
-    rclcpp::Client<std_srvs::srv::Empty>::SharedPtr octomap_reset_client;
-
-    int number_of_frames = 0;
-    bool tracking_lost = true;
-    bool is_octomap_resetting = false;
 };
 
 #endif

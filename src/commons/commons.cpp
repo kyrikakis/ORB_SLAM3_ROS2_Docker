@@ -22,6 +22,7 @@ Commons::Commons(std::shared_ptr<rclcpp::Node> p_node)
     octomap_points_pub = node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_in", qos_reliable);
     pcloud_all = node->create_publisher<sensor_msgs::msg::PointCloud2>("~/pcloud_all", qos);
     pub_image = node->create_publisher<sensor_msgs::msg::Image>("~/tracking_image", qos);
+    octomap_reset_client = node->create_client<std_srvs::srv::Empty>("/octomap_server_node/reset");
 }
 
 void Commons::publish_tracking_img(const cv::Mat &image, const rclcpp::Time &current_frame_time)
@@ -202,7 +203,7 @@ void Commons::publish_all_keyframes_points(vector<ORB_SLAM3::KeyFrame *> key_fra
         ++n_kf;
         RCLCPP_INFO(node->get_logger(), "Publishing %u cloudpoints for %u keyframe", map_points_vector.size(), n_kf);
     }
-    is_octomap_resetting = true;
+    is_octomap_resetting = false;
 }
 
 void Commons::publish_all_map_points(const rclcpp::Time &current_frame_time, std::vector<ORB_SLAM3::MapPoint *> map_points)
@@ -258,4 +259,77 @@ void Commons::publish_all_map_points(const rclcpp::Time &current_frame_time, std
         }
     }
     pcloud_all->publish(cloud);
+}
+
+void Commons::process_tracking(ORB_SLAM3::System *m_SLAM, const Eigen::Matrix<float, 4, 4> matrix, const builtin_interfaces::msg::Time &timestamp)
+{
+    try
+    {
+        number_of_frames++;
+        cv::Mat Tcw = ORB_SLAM3::Converter::toCvMat(matrix);
+
+        publish_tracking_img(m_SLAM->GetCurrentFrame(), timestamp);
+
+        if (m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::OK ||
+            m_SLAM->GetTrackingState() == ORB_SLAM3::Tracking::eTrackingState::RECENTLY_LOST)
+        {
+            if (!Tcw.empty())
+            {
+                tf2::Transform tf_transform = from_orb_to_ros_tf_transform(Tcw);
+
+                // Rviz2
+                publish_tf_transform(tf_transform, pose_frame_id, timestamp);
+                publish_pose_stamped(tf_transform, pose_frame_id, timestamp);
+                publish_keyframe_points(tf_transform, pose_frame_id, m_SLAM->GetTrackedMapPoints(),
+                                                 map_points_pub, timestamp);
+                if (number_of_frames == 10)
+                {
+                    publish_all_map_points(timestamp, m_SLAM->getMap()->GetCurrentMap()->GetAllMapPoints());
+                }
+
+                // Octomap
+                if (!is_octomap_resetting)
+                {
+                    publish_tf_transform(tf_transform, octomap_frame_id, timestamp);
+                    publish_keyframe_points(tf_transform, octomap_frame_id, m_SLAM->GetTrackedMapPoints(),
+                                                     octomap_points_pub, timestamp);
+                }
+
+                if (m_SLAM->getLoopClosing()->isMapReady() || tracking_lost)
+                {
+                    // Octomap reset
+                    RCLCPP_INFO(node->get_logger(), "Resetting Octomap");
+                    is_octomap_resetting = true;
+                    auto request = std::make_shared<std_srvs::srv::Empty_Request>();
+
+                    using ServiceResponseFuture =
+                        rclcpp::Client<std_srvs::srv::Empty>::SharedFutureWithRequest;
+
+                    auto response_received_callback =
+                        [logger = node->get_logger(), this, m_SLAM](ServiceResponseFuture future)
+                    {
+                        std::thread *m_thread = new std::thread(&Commons::publish_all_keyframes_points, this, m_SLAM->getMap()->GetAllKeyFrames());
+                        m_thread->detach();
+                    };
+
+                    tracking_lost = false;
+                    octomap_reset_client->async_send_request(request, std::move(response_received_callback));
+                }
+            }
+        }
+        else
+        {
+            tracking_lost = true;
+        }
+
+        if (number_of_frames > 10)
+        {
+            number_of_frames = 0;
+        }
+    }
+    catch (const runtime_error &e)
+    {
+        RCLCPP_ERROR(node->get_logger(), "m_SLAM exception: %s", e.what());
+        return;
+    }
 }

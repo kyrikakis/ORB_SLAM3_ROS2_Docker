@@ -1,6 +1,6 @@
 #include "image-stream-node.hpp"
 
-#include<opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
 
 using std::placeholders::_1;
@@ -30,6 +30,10 @@ ImageStreamNode::ImageStreamNode()
 
     auto qos = rclcpp::QoS(
         rclcpp::QoSInitialization::from_rmw(qos_profile));
+
+    
+    this->declare_parameter("video_capture_stream", "tcp://192.168.1.17:8888");
+    video_capture_stream = this->get_parameter("video_capture_stream").as_string(); 
     
     pub_image = this->create_publisher<sensor_msgs::msg::Image>("~/image_raw", qos);
     pub_ci = this->create_publisher<sensor_msgs::msg::CameraInfo>("~/camera_info", qos);
@@ -43,34 +47,26 @@ void ImageStreamNode::StreamImage()
 {
     cv::VideoCapture cap;
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+    cap.open(video_capture_stream, cv::CAP_FFMPEG);
 
-    cap.open("tcp://192.168.1.17:8888");
-
-    std::cout << "buffer size: " << cap.get(cv::CAP_PROP_BUFFERSIZE) << std::endl;
-
+    RCLCPP_INFO(this->get_logger(), "buffer size: %i", cap.get(cv::CAP_PROP_BUFFERSIZE));
     cv::Mat frame;
     cap >> frame;
-    std::cout << "frame received size: " << frame.size() << std::endl;
+    RCLCPP_INFO(this->get_logger(), "frame received size: %i", frame.size());
 
     try {
         while (rclcpp::ok()) {
-            // Read a frame from the video source
             cap >> frame;
-
             // Check if the frame is empty (end of video stream)
-            if (frame.empty()) {
-                RCLCPP_ERROR(this->get_logger(),  "End of video stream" );
+            if(frame.empty()) {
+                RCLCPP_ERROR(this->get_logger(),  "Empty frame, exiting" );
                 break;
-            } else {
-                std::cout << "frame rate: " << cap.get(cv::CAP_PROP_FPS) << std::endl;
             }
-            
+
             // // send image data
             std_msgs::msg::Header header;
             header.frame_id = "camera";
             header.stamp = this->get_clock()->now();
-
-            
 
             cv_bridge::CvImage img_bridge;
 
@@ -86,6 +82,7 @@ void ImageStreamNode::StreamImage()
         }
         // Clean up
         cv::destroyAllWindows();
+        cap.release();
     } catch (cv::Exception& e) {
         RCLCPP_ERROR(this->get_logger(),  "OpenCV exception: %s", e.what());
         return;

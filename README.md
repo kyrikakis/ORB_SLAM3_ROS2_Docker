@@ -2,9 +2,15 @@
 
 ### Camera calibration
 https://navigation.ros.org/tutorials/docs/camera_calibration.html
+https://docs.ros.org/en/rolling/p/camera_calibration/index.html
 
+Monocular calibration
 ```
-ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.031 --pattern=chessboard --no-service-check --ros-args -r image:=/camera/image_raw -p camera:=/camera/camera_info
+ros2 run camera_calibration cameracalibrator --size 7x9 --square 0.030 --pattern=chessboard --no-service-check --ros-args -r image:=/camera/image_raw -p camera:=/camera/camera_info
+```
+Stereo calibration
+```
+ros2 run camera_calibration cameracalibrator --approximate 0.1 --size 7x9 --square 0.046 right:=/orbslam3/image_stream_right/image_raw left:=/orbslam3/image_stream_left/image_raw right_camera:=/orbslam3/image_stream_right/camera_info left_camera:=/orbslam3/image_stream_left/camera_info
 ```
 
 ## Installation

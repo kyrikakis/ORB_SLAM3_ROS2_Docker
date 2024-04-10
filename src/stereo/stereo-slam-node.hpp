@@ -8,14 +8,13 @@
 #include "message_filters/synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 
-#include <cv_bridge/cv_bridge.h>
-
 #include "System.h"
 #include "Frame.h"
 #include "Map.h"
 #include "Tracking.h"
 
 #include "utility.hpp"
+#include "commons.hpp"
 
 class StereoSlamNode
 {
@@ -32,6 +31,7 @@ private:
 
     ORB_SLAM3::System *m_SLAM;
     std::shared_ptr<rclcpp::Node> node;
+    std::shared_ptr<Commons> commons;
 
     bool doRectify;
     cv::Mat M1l,M2l,M1r,M2r;

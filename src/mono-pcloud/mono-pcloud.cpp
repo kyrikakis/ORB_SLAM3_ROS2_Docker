@@ -20,7 +20,7 @@ int main(int argc, char **argv)
     rclcpp::init(argc, argv);
     std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("orb_slam3");
 
-    node->declare_parameter("vocabulary_file", ""); 
+    node->declare_parameter("vocabulary_file", "");
     node->declare_parameter("slam_config_file", "");
     std::string vocabulary_file = node->get_parameter("vocabulary_file").as_string(); 
     std::string slam_config_file = node->get_parameter("slam_config_file").as_string(); 

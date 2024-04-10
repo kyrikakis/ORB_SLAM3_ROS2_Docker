@@ -27,6 +27,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr pub_ci;
 
     camera_info_manager::CameraInfoManager cim;
+    std::string video_capture_stream;
 };
 
 #endif

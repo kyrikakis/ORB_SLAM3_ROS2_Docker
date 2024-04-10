@@ -21,13 +21,16 @@ int main(int argc, char **argv)
 
     node->declare_parameter("vocabulary_file", ""); 
     node->declare_parameter("slam_config_file", "");
+    node->declare_parameter("doRectify", true);
+    node->declare_parameter("enablePangolin", false);
     std::string vocabulary_file = node->get_parameter("vocabulary_file").as_string(); 
-    std::string slam_config_file = node->get_parameter("slam_config_file").as_string(); 
+    std::string slam_config_file = node->get_parameter("slam_config_file").as_string();
+    bool do_rectify = node->get_parameter("doRectify").as_bool();
+    bool enable_pangolin = node->get_parameter("enablePangolin").as_bool();
 
-    bool visualization = false;
-    ORB_SLAM3::System pSLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::STEREO, visualization);
+    ORB_SLAM3::System pSLAM(vocabulary_file.c_str(), slam_config_file.c_str(), ORB_SLAM3::System::STEREO, enable_pangolin);
 
-    StereoSlamNode stereo(&pSLAM, node, slam_config_file, true);
+    StereoSlamNode stereo(&pSLAM, node, slam_config_file, do_rectify);
 
     rclcpp::spin(node);
     rclcpp::shutdown();

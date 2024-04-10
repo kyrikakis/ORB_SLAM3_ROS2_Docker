@@ -9,12 +9,14 @@ def generate_launch_description():
     orbslam3_node = Node(
         package='orbslam3',
         namespace='orbslam3',
-        executable='mono-pcloud',
-        name='monocular',
+        executable='stereo',
+        name='stereo',
         output='screen',
         parameters=[{
             "vocabulary_file": "/workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt",
-            "slam_config_file": "/workspaces/ORB_SLAM3_ROS2_Docker/config/monocular/TUM1_wide.yaml"
+            "slam_config_file": "/workspaces/ORB_SLAM3_ROS2_Docker/config/stereo/config_1024.yaml",
+            "doRectify": True,
+            "enablePangolin": False,
         }],
         # prefix=['gdbserver localhost:3000'],
         # remappings=[
@@ -23,11 +25,24 @@ def generate_launch_description():
         # ]
     )
 
-    img_stream_node = Node(
+    img_stream_left_node = Node(
         package='orbslam3',
         namespace='orbslam3',
         executable='image-stream',
-        name='image_stream',
+        name='image_stream_left',
+        parameters=[{
+            "video_capture_stream": "tcp://192.168.1.17:8888",
+        }]
+    )
+
+    img_stream_right_node = Node(
+        package='orbslam3',
+        namespace='orbslam3',
+        executable='image-stream',
+        name='image_stream_right',
+        parameters=[{
+            "video_capture_stream": "tcp://192.168.1.17:8889",
+        }],
     )
 
     octomap_node = Node(
@@ -45,13 +60,23 @@ def generate_launch_description():
         }],
     )
 
-    img_view_node = Node(
+    img_view_left_node = Node(
         package='image_view',
         namespace='orbslam3',
         executable='image_view',
-        name='tracking_image_view',
+        name='image_view_left',
         remappings=[
-            ('image', '/orbslam3/image_stream/image_raw')
+            ('image', '/orbslam3/image_stream_left/image_raw')
+        ]
+    )
+
+    img_view_right_node = Node(
+        package='image_view',
+        namespace='orbslam3',
+        executable='image_view',
+        name='image_view_right',
+        remappings=[
+            ('image', '/orbslam3/image_stream_right/image_raw')
         ]
     )
 
@@ -98,9 +123,11 @@ def generate_launch_description():
         orbslam3_node,
         rviz2,
         octomap_node,
-        # img_view_node,
+        # img_view_left_node,
+        # img_view_right_node,
         # tracking_view_node,
         # pcloud_to_map_node,
         # project_map,
-        img_stream_node,
+        img_stream_left_node,
+        img_stream_right_node,
     ])

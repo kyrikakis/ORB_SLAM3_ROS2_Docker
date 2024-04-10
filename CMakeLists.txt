@@ -96,10 +96,11 @@ add_executable(rgbd
 ament_target_dependencies(rgbd rclcpp sensor_msgs cv_bridge message_filters ORB_SLAM3 Pangolin OpenCV)
 
 add_executable(stereo
+  src/commons/commons.cpp
   src/stereo/stereo.cpp
   src/stereo/stereo-slam-node.cpp
 )
-ament_target_dependencies(stereo rclcpp sensor_msgs cv_bridge message_filters ORB_SLAM3 Pangolin OpenCV)
+ament_target_dependencies(stereo rclcpp sensor_msgs geometry_msgs pcl_ros tf2_eigen tf2_ros tf2 tf2_geometry_msgs std_srvs cv_bridge ORB_SLAM3 Pangolin OpenCV)
 
 add_executable(stereo-inertial
   src/stereo-inertial/stereo-inertial.cpp

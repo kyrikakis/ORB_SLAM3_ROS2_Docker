@@ -6,6 +6,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <std_srvs/srv/empty.hpp>
 
 #include "System.h"
 #include "Frame.h"
@@ -28,13 +29,16 @@ public:
     std::string octomap_frame_id;
     tf2::Matrix3x3 tf_orb_to_ros;
     std::shared_ptr<rclcpp::Node> node;
-    bool is_octomap_resetting = false;
+    bool is_octomap_resetting = false;    
+    int number_of_frames = 0;
+    bool tracking_lost = true;
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr octomap_points_pub;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcloud_all;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image;
+    rclcpp::Client<std_srvs::srv::Empty>::SharedPtr octomap_reset_client;
 
     Commons(std::shared_ptr<rclcpp::Node> p_node);
 
@@ -49,5 +53,6 @@ public:
                                     const rclcpp::Time &current_frame_time);
     void publish_all_keyframes_points(vector<ORB_SLAM3::KeyFrame *> key_frames);
     void publish_all_map_points(const rclcpp::Time &current_frame_time, std::vector<ORB_SLAM3::MapPoint *> map_points);
+    void process_tracking(ORB_SLAM3::System *m_SLAM, const Eigen::Matrix<float, 4, 4> matrix, const builtin_interfaces::msg::Time &timestamp);
 };
 #endif
