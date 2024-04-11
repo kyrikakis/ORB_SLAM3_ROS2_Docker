@@ -1,4 +1,4 @@
-FROM nvidia/opengl:1.2-glvnd-runtime-ubuntu22.04
+FROM nvidia/cuda:12.3.2-devel-ubuntu22.04
 
 RUN apt-get update
 
@@ -47,11 +47,31 @@ RUN apt-get install -y libavcodec-dev libavformat-dev libswscale-dev
 RUN apt-get install -y libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev
 RUN apt-get install -y libgtk-3-dev
 
-RUN cd /tmp && git clone https://github.com/opencv/opencv.git && \
+RUN cd /tmp && \
+    git clone git@github.com:opencv/opencv_contrib.git && \
+    cd opencv_contrib && \
+    git checkout 4.9.0 && \
+    cd /tmp && \
+    git clone https://github.com/opencv/opencv.git && \
     cd opencv && \
     git checkout 4.9.0 && \
     mkdir build && cd build && \
-    cmake -D CMAKE_BUILD_TYPE=Release -D BUILD_EXAMPLES=OFF  -D WITH_GSTREAMER=ON -D WITH_FFMPEG=ON -D BUILD_DOCS=OFF -D BUILD_PERF_TESTS=OFF -D BUILD_TESTS=OFF -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
+    cmake -D CMAKE_BUILD_TYPE=Release \
+    -D BUILD_EXAMPLES=OFF  \
+    -D WITH_GSTREAMER=ON \
+    -D WITH_FFMPEG=ON \
+    -D BUILD_DOCS=OFF \
+    -D BUILD_PERF_TESTS=OFF \
+    -D BUILD_TESTS=OFF \
+    -D ENABLE_FAST_MATH=1 \
+    -D CUDA_FAST_MATH=1 \
+    -D WITH_CUBLAS=1 \
+    -D WITH_CUDA=ON \
+    -D BUILD_opencv_cudacodec=OFF \
+    -D WITH_CUDNN=OFF \
+    -D OPENCV_DNN_CUDA=OFF \
+    -D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib/modules/ \
+    -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
     make -j 4 && make install && \
     cd / && rm -rf /tmp/opencv
 
@@ -70,7 +90,7 @@ RUN mkdir -p /Datasets/EuRoC && \
     wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip -O /Datasets/EuRoC/MH01.zip && \
     unzip /Datasets/EuRoC/MH01.zip -d /Datasets/EuRoC/MH01 && rm /Datasets/EuRoC/MH01.zip
 RUN mkdir /ORB_SLAM3
-RUN cd /ORB_SLAM3 && git clone https://github.com/kyrikakis/ORB_SLAM3 /ORB_SLAM3 
+RUN cd /ORB_SLAM3 && git clone https://github.com/kyrikakis/ORB_SLAM3 /ORB_SLAM3 && git checkout cuda
 
 
 COPY ros_entrypoint.sh /ros_entrypoint.sh
