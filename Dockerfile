@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.3.2-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 RUN apt-get update
 
@@ -48,7 +48,7 @@ RUN apt-get install -y libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev
 RUN apt-get install -y libgtk-3-dev
 
 RUN cd /tmp && \
-    git clone git@github.com:opencv/opencv_contrib.git && \
+    git clone https://github.com/opencv/opencv_contrib.git && \
     cd opencv_contrib && \
     git checkout 4.9.0 && \
     cd /tmp && \
@@ -72,7 +72,7 @@ RUN cd /tmp && \
     -D OPENCV_DNN_CUDA=OFF \
     -D OPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib/modules/ \
     -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
-    make -j 4 && make install && \
+    make -j 8 && make install && \
     cd / && rm -rf /tmp/opencv
 
 # Install OpenCV
