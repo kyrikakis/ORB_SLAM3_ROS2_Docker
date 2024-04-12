@@ -35,7 +35,7 @@ find_package(pcl_ros REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 find_package(std_srvs REQUIRED)
 
-find_package(CUDA  REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 include_directories("${CUDA_INCLUDE_DIRS}")
 
 find_library(LZ4_LIBRARIES NAMES liblz4.so HINTS "lz4/lib")
