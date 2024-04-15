@@ -61,7 +61,7 @@ StereoSlamNode::StereoSlamNode(ORB_SLAM3::System *pSLAM, std::shared_ptr<rclcpp:
     left_sub = std::make_shared<message_filters::Subscriber<ImageMsg>>(shared_ptr<rclcpp::Node>(node), "/orbslam3/image_stream_left/image_raw");
     right_sub = std::make_shared<message_filters::Subscriber<ImageMsg>>(shared_ptr<rclcpp::Node>(node), "/orbslam3/image_stream_right/image_raw");
 
-    syncApproximate = std::make_shared<message_filters::Synchronizer<approximate_sync_policy>>(approximate_sync_policy(10), *left_sub, *right_sub);
+    syncApproximate = std::make_shared<message_filters::Synchronizer<approximate_sync_policy>>(approximate_sync_policy(7), *left_sub, *right_sub);
     syncApproximate->registerCallback(&StereoSlamNode::GrabStereo, this);
 }
 

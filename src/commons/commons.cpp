@@ -196,7 +196,7 @@ void Commons::publish_all_keyframes_points(vector<ORB_SLAM3::KeyFrame *> key_fra
 
         publish_tf_transform(tf, octomap_frame_id, keyframe_time);
 
-        std::this_thread::sleep_for(40ms);
+        std::this_thread::sleep_for(50ms);
         std::set<ORB_SLAM3::MapPoint *> map_points = key_frame->GetMapPoints();
         std::vector map_points_vector(map_points.begin(), map_points.end());
         publish_keyframe_points(tf, octomap_frame_id, map_points_vector, octomap_points_pub, keyframe_time);

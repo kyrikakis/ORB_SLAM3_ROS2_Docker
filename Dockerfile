@@ -114,7 +114,13 @@ RUN apt install -y ros-humble-camera-calibration-parsers && \
     git clone -b humble https://github.com/ros-perception/image_pipeline.git && \
     cd /colcon_ws && \
     source /opt/ros/humble/setup.bash && colcon build
-RUN apt install -y gdb gdbserver ros-humble-pcl-ros ros-humble-octomap-mapping ros-humble-octomap-rviz-plugins
+RUN apt install -y gdb gdbserver ros-humble-pcl-ros \
+    ros-humble-octomap-mapping \
+    ros-humble-octomap-rviz-plugins \
+    python3-rosdep \
+    ros-humble-joint-state-publisher-gui \
+    ros-humble-ros2-control \
+    ros-humble-ros2-controllers
 
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc 
 RUN echo "source /colcon_ws/install/setup.bash" >> ~/.bashrc 
