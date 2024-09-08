@@ -33,21 +33,25 @@ ImageStreamNode::ImageStreamNode()
 
     
     this->declare_parameter("video_capture_stream", "tcp://192.168.1.17:8888");
-    video_capture_stream = this->get_parameter("video_capture_stream").as_string(); 
+    video_capture_stream = this->get_parameter("video_capture_stream").as_string();
+    this->declare_parameter("config_file", "/workspaces/ORB_SLAM3_ROS2_Docker/calibrations/left.yaml");
+    config_file = this->get_parameter("config_file").as_string();
+    this->declare_parameter("display_image", false);
+    display_image = this->get_parameter("display_image").as_bool();
     
     pub_image = this->create_publisher<sensor_msgs::msg::Image>("~/image_raw", qos);
     pub_ci = this->create_publisher<sensor_msgs::msg::CameraInfo>("~/camera_info", qos);
 
-    if (!cim.setCameraName("pi_module3_wide"))
-        throw std::runtime_error("camera name must only contain alphanumeric characters");
+    cim.loadCameraInfo(config_file);
     ImageStreamNode::StreamImage();
 }
 
 void ImageStreamNode::StreamImage() 
 {
+
     cv::VideoCapture cap;
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
-    cap.open(video_capture_stream, cv::CAP_FFMPEG);
+    cap.open(video_capture_stream);
 
     RCLCPP_INFO(this->get_logger(), "buffer size: %i", cap.get(cv::CAP_PROP_BUFFERSIZE));
     cv::Mat frame;
@@ -63,22 +67,35 @@ void ImageStreamNode::StreamImage()
                 break;
             }
 
-            // // send image data
-            std_msgs::msg::Header header;
-            header.frame_id = "camera";
-            header.stamp = this->get_clock()->now();
+            if(frame.size().width < 0) {
+                RCLCPP_ERROR(this->get_logger(),  "0 size, exiting" );
+                break;
+            }
 
-            cv_bridge::CvImage img_bridge;
+            if(display_image) {
+                RCLCPP_INFO(this->get_logger(), "frame received size width: %i", frame.size().width);
+                RCLCPP_INFO(this->get_logger(), "frame received size height: %i", frame.size().height);
+                cv::imshow(this->get_name(), frame);
+                cv::waitKey(1);
+            } else {
 
-            img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, frame);
-            ImageMsg::SharedPtr msg_img = img_bridge.toImageMsg();
-            pub_image->publish(*msg_img); 
+                // send image data
+                std_msgs::msg::Header header;
+                header.frame_id = "camera";
+                header.stamp = this->get_clock()->now();
 
-            sensor_msgs::msg::CameraInfo ci = cim.getCameraInfo();
-            ci.header = header;
-            ci.height = frame.size().height;
-            ci.width = frame.size().width;
-            pub_ci->publish(ci);
+                cv_bridge::CvImage img_bridge;
+
+                img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGR8, frame);
+                ImageMsg::SharedPtr msg_img = img_bridge.toImageMsg();
+                pub_image->publish(*msg_img); 
+
+                sensor_msgs::msg::CameraInfo ci = cim.getCameraInfo();
+                ci.header = header;
+                ci.height = frame.size().height;
+                ci.width = frame.size().width;
+                pub_ci->publish(ci);
+            }
         }
         // Clean up
         cv::destroyAllWindows();

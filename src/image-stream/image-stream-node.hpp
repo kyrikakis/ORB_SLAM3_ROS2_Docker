@@ -28,6 +28,8 @@ private:
 
     camera_info_manager::CameraInfoManager cim;
     std::string video_capture_stream;
+    std::string config_file;
+    bool display_image;
 };
 
 #endif

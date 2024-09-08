@@ -14,7 +14,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             "vocabulary_file": "/workspaces/ORB_SLAM3_ROS2_Docker/vocabulary/ORBvoc.txt",
-            "slam_config_file": "/workspaces/ORB_SLAM3_ROS2_Docker/config/stereo/config_1024.yaml",
+            "slam_config_file": "/workspaces/ORB_SLAM3_ROS2_Docker/config/stereo/config_1024_90_fov.yaml",
             "doRectify": True,
             "enablePangolin": False,
         }],
@@ -25,24 +25,49 @@ def generate_launch_description():
         # ]
     )
 
+    stereo_img_stream_node = Node(
+        package='orbslam3',
+        namespace='orbslam3',
+        executable='stereo-image-stream',
+        name='stereo_image_stream',
+        parameters=[{
+            "camera_stream": "tcp://192.168.1.172:8889",
+            "left_config_file": "file:///workspaces/ORB_SLAM3_ROS2_Docker/calibrations/left.yaml",
+            "right_config_file": "file:///workspaces/ORB_SLAM3_ROS2_Docker/calibrations/right.yaml",
+            "display_image": False,
+        }]
+    )
+
     img_stream_left_node = Node(
         package='orbslam3',
         namespace='orbslam3',
         executable='image-stream',
-        name='image_stream_left',
+        name='left',
         parameters=[{
-            "video_capture_stream": "tcp://192.168.1.17:8888",
-        }]
+            "video_capture_stream": "tcp://192.168.1.172:8889",
+            "config_file": "file:///workspaces/ORB_SLAM3_ROS2_Docker/calibrations/left.yaml",
+            "display_image": False,
+        }],
+        remappings=[
+            ('/orbslam3/left/camera_info', '/left/camera_info'),
+            ('/orbslam3/left/image_raw', '/left/image_raw')
+        ]
     )
 
     img_stream_right_node = Node(
         package='orbslam3',
         namespace='orbslam3',
         executable='image-stream',
-        name='image_stream_right',
+        name='right',
         parameters=[{
-            "video_capture_stream": "tcp://192.168.1.17:8889",
+            "video_capture_stream": "tcp://192.168.1.172:8888",
+            "config_file": "file:///workspaces/ORB_SLAM3_ROS2_Docker/calibrations/right.yaml",
+            "display_image": True,
         }],
+        remappings=[
+            ('/orbslam3/right/camera_info', '/right/camera_info'),
+            ('/orbslam3/right/image_raw', '/right/image_raw')
+        ]
     )
 
     octomap_node = Node(
@@ -73,7 +98,7 @@ def generate_launch_description():
         executable='image_view',
         name='image_view_left',
         remappings=[
-            ('image', '/orbslam3/image_stream_left/image_raw')
+            ('image', '/orbslam3/left/image_raw')
         ]
     )
 
@@ -83,7 +108,7 @@ def generate_launch_description():
         executable='image_view',
         name='image_view_right',
         remappings=[
-            ('image', '/orbslam3/image_stream_right/image_raw')
+            ('image', '/orbslam3/right/image_raw')
         ]
     )
 
@@ -127,9 +152,9 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        orbslam3_node,
-        rviz2,
-        octomap_node,
+        # orbslam3_node,
+        # rviz2,
+        # octomap_node,
         # img_view_left_node,
         # img_view_right_node,
         # tracking_view_node,
@@ -137,4 +162,5 @@ def generate_launch_description():
         # project_map,
         img_stream_left_node,
         img_stream_right_node,
+        # stereo_img_stream_node,
     ])
