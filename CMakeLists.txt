@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
+
+# Package Name
 project(orbslam3)
 add_definitions(-w)
 
@@ -92,6 +94,12 @@ add_executable(image-stream
 )
 ament_target_dependencies(image-stream rclcpp sensor_msgs camera_info_manager cv_bridge OpenCV)
 
+add_executable(stereo-image-stream
+  src/stereo-image-stream/stereo-image-stream.cpp
+  src/stereo-image-stream/stereo-image-stream-node.cpp
+)
+ament_target_dependencies(stereo-image-stream rclcpp sensor_msgs camera_info_manager cv_bridge OpenCV)
+
 add_executable(rgbd
   src/rgbd/rgbd.cpp
   src/rgbd/rgbd-slam-node.cpp
@@ -111,7 +119,10 @@ add_executable(stereo-inertial
 )
 ament_target_dependencies(stereo-inertial rclcpp sensor_msgs cv_bridge ORB_SLAM3 Pangolin OpenCV)
 
-install(TARGETS mono mono-pcloud pcloud-to-map project-map mono-inetrial image-stream rgbd stereo stereo-inertial DESTINATION lib/${PROJECT_NAME})
+install(
+  TARGETS mono mono-pcloud pcloud-to-map project-map mono-inetrial image-stream stereo-image-stream rgbd stereo stereo-inertial 
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
 
